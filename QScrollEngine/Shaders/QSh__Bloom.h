@@ -14,60 +14,81 @@ namespace QScrollEngine {
 class QSh__Bloom: public QSh
 {
 public:
-    static int locationMatrixWVP;
-    static int locationScreenTexture;
-    static int locationBloomMapTexture;
-    static int locationTexelParam;
-
-private:
-    static const QVector2D _D;
-
-    float _intensity;
-    QVector2D _texel;
-    QMatrix4x4 _finalMatrix;
-
-public:
     QSh__Bloom()
     {
-        _currentIndexType = -3;
-        _subIndexType = 0;
-        _intensity = 0.8f;
+        m_currentTypeIndex = -3;
+        m_subTypeIndex = 0;
+        m_intensity = 0.8f;
         setSize(640, 480);
     }
 
-    QMatrix4x4 finalMatrx() const { return _finalMatrix; }
-    void setFinalMatrix(const QMatrix4x4& finalMatrix) { _finalMatrix = finalMatrix; }
+    QMatrix4x4 finalMatrix() const { return m_finalMatrix; }
+    void setFinalMatrix(const QMatrix4x4& finalMatrix) { m_finalMatrix = finalMatrix; }
 
-    float intensity() const { return _intensity; }
-    void setIntensity(float intensity) { _intensity = intensity; }
+    float intensity() const { return m_intensity; }
+    void setIntensity(float intensity) { m_intensity = intensity; }
 
     void bindScreenTexture(QScrollEngineContext* parentContext, GLuint screenTexture);
     void bindBloomMapTexture(QScrollEngineContext* parentContext, GLuint bloomMapTexture);
 
     void setSize(int width, int height)
     {
-        _texel.setX(_D.x() / (float) width);
-        _texel.setY(_D.y() / (float) height);
+        m_texel.setX(m_D.x() / (float) width);
+        m_texel.setY(m_D.y() / (float) height);
     }
     void setSize(const QSize& size) { setSize(size.width(), size.height()); }
-    QSize size() const { return QSize(_D.x() / _texel.x(), _D.y() / _texel.y()); }
+    QSize size() const { return QSize(m_D.x() / m_texel.x(), m_D.y() / m_texel.y()); }
 
-    int indexType() const override { return -3; }
-    bool use(QScrollEngineContext*, QOpenGLShaderProgram* program) override;
-    void load(QScrollEngineContext* context, std::vector<QSharedPointer<QOpenGLShaderProgram>>& shaders) override;
+    QVector3D texelParam() const { return QVector3D(m_texel.x(), m_texel.y(), m_intensity); }
 
     QSh__Bloom(const QSh__Bloom* s)
     {
-        _currentIndexType = -3;
-        _subIndexType = 0;
-        _intensity = s->intensity();
+        m_currentTypeIndex = -3;
+        m_subTypeIndex = 0;
+        m_intensity = s->intensity();
         setSize(s->size());
-        setFinalMatrix(s->finalMatrx());
+        setFinalMatrix(s->finalMatrix());
     }
-    QSh* copy() const override
+    QShPtr copy() const override
     {
-        return new QSh__Bloom(this);
+        return QShPtr(new QSh__Bloom(this));
     }
+
+    int typeIndex() const override { return -3; }
+    bool use(QScrollEngineContext*, QOpenGLShaderProgram* program, const QDrawObject3D* ) override;
+    void load(QScrollEngineContext* context, std::vector<QSharedPointer<QOpenGLShaderProgram>>& shaders) override;
+    std::vector<VertexAttributes> attributes() const override
+    {
+        std::vector<VertexAttributes> attrs;
+        attrs.push_back(VertexAttributes::TextureCoords);
+        return attrs;
+    }
+
+
+private:
+    float m_intensity;
+    QVector2D m_texel;
+    QMatrix4x4 m_finalMatrix;
+
+public:
+    class UniformLocation
+    {
+    public:
+        void bindParameters(QOpenGLShaderProgram* program, const QSh__Bloom* shader) const;
+        void loadLocations(QOpenGLShaderProgram* shader);
+
+    protected:
+        int matrixWVP;
+        int screenTexture;
+        int bloomMapTexture;
+        int texelParam;
+    };
+
+    static const UniformLocation& getLocations() { return m_locations; }
+
+private:
+    static const QVector2D m_D;
+    static UniformLocation m_locations;
 };
 
 }

@@ -13,122 +13,122 @@ namespace QScrollEngine {
 QLight::QLight(bool isStatic):
     QSceneObject3D()
 {
-    _parentEntity = nullptr;
-    _scene = nullptr;
-    _type = Omni;
-    _transformHasChanged = true;
-    _isStatic = isStatic;
-    _index = -1;
-    _radius = _radiusSquare = 1.0f;
-    _soft = 1.0f;
-    _power = 1.0f;
-    _color.setRgbF(1.0f, 1.0f, 1.0f, 1.0f);
+    m_parentEntity = nullptr;
+    m_scene = nullptr;
+    m_type = Type::Omni;
+    m_transformHasChanged = true;
+    m_isStatic = isStatic;
+    m_index = -1;
+    m_radius = m_radiusSquared = 1.0f;
+    m_soft = 1.0f;
+    m_power = 1.0f;
+    m_color.setRgbF(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
 QLight::QLight(QScene* scene, bool isStatic)
 {
-    _parentEntity = nullptr;
-    _scene = nullptr;
-    _type = Omni;
-    _transformHasChanged = true;
-    _isStatic = isStatic;
-    _index = -1;
-    _radius = _radiusSquare = 1.0f;
-    _soft = 1.0f;
-    _power = 1.0f;
-    _color.setRgbF(1.0f, 1.0f, 1.0f, 1.0f);
+    m_parentEntity = nullptr;
+    m_scene = nullptr;
+    m_type = Type::Omni;
+    m_transformHasChanged = true;
+    m_isStatic = isStatic;
+    m_index = -1;
+    m_radius = m_radiusSquared = 1.0f;
+    m_soft = 1.0f;
+    m_power = 1.0f;
+    m_color.setRgbF(1.0f, 1.0f, 1.0f, 1.0f);
     setParentScene(scene);
 }
 
 QLight::QLight(QEntity* parentEntity, bool isStatic)
 {
-    _parentEntity = nullptr;
-    _scene = nullptr;
-    _type = Omni;
-    _transformHasChanged = true;
-    _isStatic = isStatic;
-    _index = -1;
-    _radius = _radiusSquare = 1.0f;
-    _soft = 1.0f;
-    _power = 1.0f;
-    _color.setRgbF(1.0f, 1.0f, 1.0f, 1.0f);
+    m_parentEntity = nullptr;
+    m_scene = nullptr;
+    m_type = Type::Omni;
+    m_transformHasChanged = true;
+    m_isStatic = isStatic;
+    m_index = -1;
+    m_radius = m_radiusSquared = 1.0f;
+    m_soft = 1.0f;
+    m_power = 1.0f;
+    m_color.setRgbF(1.0f, 1.0f, 1.0f, 1.0f);
     setParentEntity(parentEntity);
 }
 
 QLight::~QLight()
 {
-    if (_scene) {
-        _scene->_deleteLight(this);
-        _scene = nullptr;
+    if (m_scene) {
+        m_scene->_deleteLight(this);
+        m_scene = nullptr;
     }
-    if (_parentEntity)
-        _parentEntity->_deleteChild(this);
+    if (m_parentEntity)
+        m_parentEntity->_deleteChild(this);
 }
 
 void QLight::setParentEntity(QEntity* entity)
 {
     if (entity)
         entity->addChild(this);
-    else if (_parentEntity)
-        _parentEntity->_deleteChild(this);
+    else if (m_parentEntity)
+        m_parentEntity->_deleteChild(this);
 }
 
 bool QLight::setParentEntity_saveTransform(QEntity* entity)
 {
     if (entity)
         return entity->addChild_saveTransform(this);
-    else if (_parentEntity) {
+    else if (m_parentEntity) {
         updateTransform();
-        _parentEntity->_deleteChild(this);
-        _position = _globalPosition;
-        _transformHasChanged = false;
+        m_parentEntity->_deleteChild(this);
+        m_position = m_globalPosition;
+        m_transformHasChanged = false;
     }
     return false;
 }
 
 void QLight::setParentScene(QScene* scene)
 {
-    if (_parentEntity) {
-        _parentEntity->_deleteChild(this);
-    } else if (_scene) {
-        _scene->_deleteLight(this);
+    if (m_parentEntity) {
+        m_parentEntity->_deleteChild(this);
+    } else if (m_scene) {
+        m_scene->_deleteLight(this);
     }
-    _scene = scene;
-    if (_scene) {
-        _scene->_addLight(this);
+    m_scene = scene;
+    if (m_scene) {
+        m_scene->_addLight(this);
     }
 }
 
 void QLight::setParentScene_saveTransform(QScene* scene)
 {
-    if (_parentEntity) {
+    if (m_parentEntity) {
         updateTransform();
-        _parentEntity->_deleteChild(this);
-        _position = _globalPosition;
-        _transformHasChanged = false;
-    } else if (_scene) {
-        _scene->_deleteLight(this);
+        m_parentEntity->_deleteChild(this);
+        m_position = m_globalPosition;
+        m_transformHasChanged = false;
+    } else if (m_scene) {
+        m_scene->_deleteLight(this);
     }
-    _scene = scene;
-    if (_scene) {
-        _scene->_addLight(this);
+    m_scene = scene;
+    if (m_scene) {
+        m_scene->_addLight(this);
     }
 }
 
 bool QLight::transformHasChanged() const
 {
-    if (_transformHasChanged)
+    if (m_transformHasChanged)
         return true;
-    if (_parentEntity)
-        return _parentEntity->transformHasChanged();
+    if (m_parentEntity)
+        return m_parentEntity->transformHasChanged();
     return false;
 }
 
 void QLight::_updateTransformFromParent(const QMatrix4x4& parentMatrixWorld)
 {
-    if (_transformHasChanged) {
-        _globalPosition = QOtherMathFunctions::transform(parentMatrixWorld, _position);
-        _transformHasChanged = false;
+    if (m_transformHasChanged) {
+        m_globalPosition = QOtherMathFunctions::transform(parentMatrixWorld, m_position);
+        m_transformHasChanged = false;
         _updateMatrixWorld();
         _updateBoundingBox();
     }
@@ -136,8 +136,8 @@ void QLight::_updateTransformFromParent(const QMatrix4x4& parentMatrixWorld)
 
 void QLight::_solveTransformFromParent(const QMatrix4x4& parentMatrixWorld)
 {
-    _globalPosition = QOtherMathFunctions::transform(parentMatrixWorld, _position);
-    _transformHasChanged = false;
+    m_globalPosition = QOtherMathFunctions::transform(parentMatrixWorld, m_position);
+    m_transformHasChanged = false;
     _updateMatrixWorld();
     _updateBoundingBox();
 }
@@ -145,9 +145,9 @@ void QLight::_solveTransformFromParent(const QMatrix4x4& parentMatrixWorld)
 void QLight::setRadius(float radius)
 {
     assert(radius > 0.0f);
-    _radius = radius;
-    _radiusSquare = _radius * _radius;
-    _transformHasChanged = true;
+    m_radius = radius;
+    m_radiusSquared = m_radius * m_radius;
+    m_transformHasChanged = true;
 }
 
 void QLight::_updateMatrixWorld()
@@ -156,9 +156,9 @@ void QLight::_updateMatrixWorld()
     _matrix.world(3, 1) = 0.0f;
     _matrix.world(3, 2) = 0.0f;
     _matrix.world(3, 3) = 1.0f;*/
-    _matrix.world(0, 3) = _globalPosition.x();
-    _matrix.world(1, 3) = _globalPosition.y();
-    _matrix.world(2, 3) = _globalPosition.z();
+    m_matrix.world(0, 3) = m_globalPosition.x();
+    m_matrix.world(1, 3) = m_globalPosition.y();
+    m_matrix.world(2, 3) = m_globalPosition.z();
     /*_matrix.world(0, 0) = 1.0f;
     _matrix.world(0, 1) = 0.0f;
     _matrix.world(0, 2) = 0.0f;
@@ -172,31 +172,31 @@ void QLight::_updateMatrixWorld()
 
 void QLight::_updateBoundingBox()
 {
-    _centerOfGlobalBoundingBox = _globalPosition;
-    _boundingBox.toPoint(_centerOfGlobalBoundingBox);
-    _boundingBox.expand(_radius);
+    m_centerOfGlobalBoundingBox = m_globalPosition;
+    m_boundingBox.toPoint(m_centerOfGlobalBoundingBox);
+    m_boundingBox.expand(m_radius);
 }
 
 void QLight::solveTransform()
 {
-    if (_parentEntity) {
-        _parentEntity->updateTransform();
-        _updateTransformFromParent(_parentEntity->_matrix.world);
+    if (m_parentEntity) {
+        m_parentEntity->updateTransform();
+        _updateTransformFromParent(m_parentEntity->m_matrix.world);
     } else {
-        _globalPosition = _position;
+        m_globalPosition = m_position;
         _updateMatrixWorld();
     }
     _updateBoundingBox();
-    _centerOfGlobalBoundingBox = _globalPosition;
-    _transformHasChanged = false;
+    m_centerOfGlobalBoundingBox = m_globalPosition;
+    m_transformHasChanged = false;
 }
 
 void QLight::updateTransform()
 {
-    if (_parentEntity) {
-        if (_parentEntity->transformHasChanged())
+    if (m_parentEntity) {
+        if (m_parentEntity->transformHasChanged())
             solveTransform();
-    } else if (_transformHasChanged)
+    } else if (m_transformHasChanged)
         solveTransform();
 }
 

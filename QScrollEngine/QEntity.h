@@ -3,6 +3,7 @@
 
 #include <functional>
 
+#include <QSharedPointer>
 #include <QQuaternion>
 #include <QOpenGLShaderProgram>
 #include <vector>
@@ -29,47 +30,34 @@ class QEntity:
         public QSceneObject3D,
         public QDrawObject3D
 {
-    friend class QScene;
-    friend class QMesh;
-    friend class QScrollEngineContext;
-    friend class QSprite;
-    friend class QLight;
-    friend class QAnimation3D;
-
 public:
-    class QPartEntity:
+    class Part:
             public QDrawObject3D,
             public QShObject3D
     {
-        friend class QEntity;
-        friend class QScene;
-        friend  class QScrollEngineContext;
-
     public:
-        QPartEntity():QDrawObject3D(), QShObject3D(this) { _mesh = nullptr; }
-        QPartEntity(QMesh* mesh, QSh* shader):QDrawObject3D(), QShObject3D(this)
+        Part():QDrawObject3D(), QShObject3D() { m_mesh = nullptr; }
+        Part(QMesh* mesh, QShPtr shader):QDrawObject3D(), QShObject3D(shader)
         {
-            _mesh = nullptr;
+            m_mesh = nullptr;
             setMesh(mesh);
-            _shader = shader;
-            if (_shader)
-                _shader->setObject(this);
-            else
-                _shader = nullptr;
         }
-        ~QPartEntity();
-        QMesh* mesh() const { return _mesh; }
+        ~Part();
+        QMesh* mesh() const { return m_mesh; }
         void setMesh(QMesh* mesh);
-        void setShader(QSh* shader) { delete _shader; _shader = shader; _shader->setObject(this); }
         void updateGlobalBoundingBox(const QMatrix4x4& transform);
         void draw(QScrollEngineContext* context) override;
 
     private:
-        QMesh* _mesh;
+        friend class QEntity;
+        friend class QScene;
+        friend  class QScrollEngineContext;
+
+        QMesh* m_mesh;
 
         void _connectMeshToSceneObject();
         void _disconnectMeshFromSceneObject();
-        void _setParentSceneObject(QSceneObject3D* sceneObject);
+        void _setSceneObject(QSceneObject3D* sceneObject);
     };
 
 public:
@@ -87,48 +75,50 @@ public:
     bool setParentEntity_saveTransform(QEntity* entity);
     void setParentScene(QScene* scene);
     bool setParentScene_saveTransform(QScene* scene);
-    unsigned int countEntityChilds() const { return _childEntities.size(); }
-    QEntity* childEntity(unsigned int i) const { return _childEntities[i]; }
-    unsigned int countSpriteChilds() const { return _childSprites.size(); }
-    QSprite* childSprite(unsigned int i) const { return _childSprites[i]; }
-    unsigned int countLightChilds() const { return _childLights.size(); }
-    QLight* childLight(unsigned int i) const { return _childLights[i]; }
+    std::size_t countEntityChilds() const { return m_childEntities.size(); }
+    QEntity* childEntity(std::size_t i) const { return m_childEntities[i]; }
+    std::size_t countSpriteChilds() const { return m_childSprites.size(); }
+    QSprite* childSprite(std::size_t i) const { return m_childSprites[i]; }
+    std::size_t countLightChilds() const { return m_childLights.size(); }
+    QLight* childLight(std::size_t i) const { return m_childLights[i]; }
     QEntity* findChild(const QString& name);
 
-    QString name() const { return _name; }
-    void setName(const QString& name) { _name = name; }
-    void setPosition(const QVector3D& position) { _position = position; _transformHasChanged = true; }
-    void setPosition(float x, float y, float z) { _position.setX(x); _position.setY(y);
-                                                  _position.setZ(z); _transformHasChanged = true; }
-    void setOrientation(const QQuaternion& orientation) { _orientation = orientation; _transformHasChanged = true; }
-    void setScale(const QVector3D& scale) { _scale = scale; _transformHasChanged = true; }
-    void setScale(float scale) { _scale.setX(scale); _scale.setY(scale); _scale.setZ(scale);
-                                 _transformHasChanged = true; }
-    void setScale(float x, float y, float z) { _scale.setX(x); _scale.setY(y); _scale.setZ(z);
-                                               _transformHasChanged = true; }
-    QQuaternion orientation() const { return _orientation; }
-    QVector3D scale() const { return _scale; }
+    QString name() const { return m_name; }
+    void setName(const QString& name) { m_name = name; }
+    void setPosition(const QVector3D& position) { m_position = position; m_transformHasChanged = true; }
+    void setPosition(float x, float y, float z) { m_position.setX(x); m_position.setY(y);
+                                                  m_position.setZ(z); m_transformHasChanged = true; }
+    void setOrientation(const QQuaternion& orientation) { m_orientation = orientation; m_transformHasChanged = true; }
+    void setScale(const QVector3D& scale) { m_scale = scale; m_transformHasChanged = true; }
+    void setScale(float scale) { m_scale.setX(scale); m_scale.setY(scale); m_scale.setZ(scale);
+                                 m_transformHasChanged = true; }
+    void setScale(float x, float y, float z) { m_scale.setX(x); m_scale.setY(y); m_scale.setZ(z);
+                                               m_transformHasChanged = true; }
+    QQuaternion orientation() const { return m_orientation; }
+    QVector3D scale() const { return m_scale; }
     bool transformHasChanged() const;
-    unsigned int countParts() const { return _parts.size(); }
-    QPartEntity* part(int i) const { return _parts[i]; }
-    QPartEntity* addPart(QMesh* mesh = nullptr, QSh* shader = nullptr, bool clone = true);
-    QPartEntity* addPart(QScrollEngineContext* parentContext, QGLPrimitiv::Primitives meshFlag, QSh* shader);
-    void addPart(QPartEntity* part, bool clone = true);
+    std::size_t countParts() const { return m_parts.size(); }
+    Part* part(std::size_t i) const { return m_parts[i]; }
+    Part* addPart(QMesh* mesh = nullptr, QShPtr shader = QShPtr(nullptr),
+                         bool clone = true);
+    Part* addPart(QScrollEngineContext* parentContext, QGLPrimitiv::Primitives meshFlag, QShPtr shader);
+    void addPart(Part* part, bool clone = true);
     QEntity* copy() const;
     QEntity* clone() const;
-    void deletePart(unsigned int i);
+    void deletePart(std::size_t i);
     void deleteParts();
     void setAlpha(bool enable);
-    void setShaderToParts(QSh* shader);
-    void setShaderToChildSprites(QSh* shader);
-    void setShaderToChildEntities(QSh* shader);
-    void setShaderToAll(QSh* shader);
-    void convertShaders(const std::function<QSh*(QSh*)> &convertFunction);
-    QSh* shader(unsigned int i) const;
-    void setShaderAtPart(unsigned int i, QSh* shader);
+    void foreach_parts(const std::function<void(Part *)>& functor);
+    void setShaderToParts(QShPtr shader);
+    void setShaderToChildSprites(QShPtr shader);
+    void setShaderToChildEntities(QShPtr shader);
+    void setShaderToAll(QShPtr shader);
+    void convertShaders(const std::function<QSh*(QSh*)>& convertFunction);
+    QShPtr shader(std::size_t i) const;
+    void setShaderAtPart(std::size_t i, QShPtr shader);
     void updateNormals();
     void updateNormalsWithChilds();
-    QAnimation3D* animation() const { return _animation; }
+    QAnimation3D* animation() const { return m_animation; }
     void setAnimation(QAnimation3D* animation);
     void swapAnimation(QEntity* entity);
     void setToAnimation();
@@ -136,35 +126,42 @@ public:
     void setAnimationSpeed(float speed);
     void setAnimationParameters(float time, float speed);
     bool haveAnimation() const;
-    unsigned int index() const { return _index; }
+    std::size_t index() const { return m_index; }
 
     void updateTransform();
     void updateTransform(bool& change);
-    QVector3D getTransformPoint(const QVector3D& point) const;
-    QVector3D getTransformDir(const QVector3D& dir) const;
-    QVector3D getInverseTransformPoint(const QVector3D& point) const;
-    QVector3D getInverseTransformDir(const QVector3D& dir) const;
+    QVector3D transformPoint(const QVector3D& point) const;
+    QVector3D transformDir(const QVector3D& dir) const;
+    QVector3D inverseTransformPoint(const QVector3D& point) const;
+    QVector3D inverseTransformDir(const QVector3D& dir) const;
 
-    QBoundingBox boundingBox() const { return _boundingBox; }
-    QEntity* rootParentEntity() { return (_parentEntity) ? _parentEntity->rootParentEntity() : this; }
+    QBoundingBox boundingBox() const { return m_boundingBox; }
+    QEntity* rootParentEntity() { return (m_parentEntity) ? m_parentEntity->rootParentEntity() : this; }
 
     void draw(QScrollEngineContext* context) override;
 
 protected:
-    unsigned int _index;
-    std::vector<QPartEntity*> _parts;
-    std::vector<QEntity*> _childEntities;
-    std::vector<QSprite*> _childSprites;
-    std::vector<QLight*> _childLights;
-    QString _name;
-    QAnimation3D* _animation;
+    friend class QScene;
+    friend class QMesh;
+    friend class QScrollEngineContext;
+    friend class QSprite;
+    friend class QLight;
+    friend class QAnimation3D;
 
-    QQuaternion _orientation;
-    QVector3D _scale;
+    std::size_t m_index;
+    std::vector<Part*> m_parts;
+    std::vector<QEntity*> m_childEntities;
+    std::vector<QSprite*> m_childSprites;
+    std::vector<QLight*> m_childLights;
+    QString m_name;
+    QAnimation3D* m_animation;
 
-    QMatrix4x4 _localMatrixWorld;
+    QQuaternion m_orientation;
+    QVector3D m_scale;
 
-    inline void _freePart(unsigned int i);
+    QMatrix4x4 m_localMatrixWorld;
+
+    inline void _freePart(std::size_t i);
 
     void _updateScene(QScene* scene);
     void _deleteChild(QSprite* sprite);

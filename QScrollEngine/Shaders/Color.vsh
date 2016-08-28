@@ -7,7 +7,6 @@ precision mediump float;
 uniform mat4 matrix_wvp;
 
 attribute vec4 vertex_position;
-attribute vec2 vertex_texcoord;
 
 void main()
 {

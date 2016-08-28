@@ -2,12 +2,13 @@
 #define QSH_LIGHT_H
 
 #include "QScrollEngine/Shaders/QSh.h"
-#include "QScrollEngine/Shaders/QSh_Texture1.h"
+#include "QScrollEngine/Shaders/QSh_Texture.h"
 
 #include <QColor>
 #include <QOpenGLShaderProgram>
 #include <QOpenGLTexture>
 #include <QMatrix4x4>
+#include <QSharedPointer>
 
 #include "QScrollEngine/QSceneObject3D.h"
 #include "QScrollEngine/QDrawObject3D.h"
@@ -15,88 +16,179 @@
 
 namespace QScrollEngine {
 
-class QSh_Light: public QSh_Texture1
+class QSh_Light: virtual public QSh_Texture
 {
-public:
-    static int locationMatrixWVP[6];
-    static int locationMatrixW[6];
-    static int locationColor[6];
-    static int locationTexture0[6];
-    static int locationAmbientColor[6];
-    static int locationLight0_color[6];
-    static int locationLight0_position[6];
-    static int locationLight0_radius[6];
-    static int locationLight0_soft[6];
-    static int locationLight1_color[6];
-    static int locationLight1_position[6];
-    static int locationLight1_radius[6];
-    static int locationLight1_soft[6];
-    static int locationLight_dir[6];
-    static int locationLight_spotCutOff[6];
-    static int locationLight_specularIntensity[3];
-    static int locationLight_specularPower[3];
-    static int locationLight_viewPosition[3];
-
 public:
     QSh_Light()
     {
-        _currentIndexType = Texture1;
-        _subIndexType = 0;
-        _texture0 = nullptr;
-        _color.setRgb(255, 255, 255, 255);
-        _specularIntensity = 0.0f;
-        _specularPower = 1.0f;
-        _light[0] = _light[1] = nullptr;
-        _drawObject = nullptr;
-        _sceneObject = nullptr;
+        m_currentTypeIndex = static_cast<int>(Type::Light);
+        m_subTypeIndex = 0;
+        m_texture = nullptr;
+        m_color.setRgb(255, 255, 255, 255);
+        m_specularIntensity = 0.0f;
+        m_specularPower = 1.0f;
+        m_lights[0] = m_lights[1] = nullptr;
     }
-    QSh_Light(QOpenGLTexture* texture0, const QColor& color = QColor(255, 255, 255, 255),
+    QSh_Light(QOpenGLTexture* texture, const QColor& color = QColor(255, 255, 255, 255),
               float specularIntensity = 0.0f, float specularPower = 1.0f)
     {
-        _currentIndexType = Texture1;
-        _subIndexType = 0;
-        _texture0 = texture0;
-        _color = color;
-        _specularIntensity = specularIntensity;
-        _specularPower = specularPower;
-        _light[0] = _light[1] = nullptr;
-        _drawObject = nullptr;
-        _sceneObject = nullptr;
+        m_currentTypeIndex = static_cast<int>(Type::Light);
+        m_subTypeIndex = 0;
+        m_texture = texture;
+        m_color = color;
+        m_specularIntensity = specularIntensity;
+        m_specularPower = specularPower;
+        m_lights[0] = m_lights[1] = nullptr;
     }
 
-    float specularIntensity() const { return _specularIntensity; }
-    void setSpecularIntensity(float intensity) { _specularIntensity = intensity; }
-    float specularPower() const { return _specularPower; }
-    void setSpecularPower(float power) { _specularPower = power; }
+    float specularIntensity() const { return m_specularIntensity; }
+    void setSpecularIntensity(float intensity) { m_specularIntensity = intensity; }
+    float specularPower() const { return m_specularPower; }
+    void setSpecularPower(float power) { m_specularPower = power; }
 
-    int indexType() const override { return Light; }
-    void preprocess() override;
-    bool use(QScrollEngineContext* context, QOpenGLShaderProgram* program) override;
-    void load(QScrollEngineContext* context, std::vector<QSharedPointer<QOpenGLShaderProgram>>& shaders) override;
-
-    QLight* light0() const { return _light[0]; }
-    QLight* light1() const { return _light[1]; }
+    QLight* light0() const { return m_lights[0]; }
+    QLight* light1() const { return m_lights[1]; }
 
     QSh_Light(const QSh_Light* s)
     {
-        _currentIndexType = Light;
-        _subIndexType = 0;
-        _texture0 = s->texture0();
-        _color = s->color();
-        _specularIntensity = s->specularIntensity();
-        _specularPower = s->specularPower();
+        m_currentTypeIndex = static_cast<int>(Type::Light);
+        m_subTypeIndex = 0;
+        m_texture = s->texture();
+        m_color = s->color();
+        m_specularIntensity = s->specularIntensity();
+        m_specularPower = s->specularPower();
     }
-    QSh* copy() const override
+    QShPtr copy() const override
     {
-        return new QSh_Light(this);
+        return QShPtr(new QSh_Light(this));
+    }
+
+    int typeIndex() const override { return static_cast<int>(Type::Light); }
+    void preprocess(const QDrawObject3D* drawObject) override;
+    bool use(QScrollEngineContext* context, QOpenGLShaderProgram* program, const QDrawObject3D* drawObject) override;
+    void load(QScrollEngineContext* context, std::vector<QSharedPointer<QOpenGLShaderProgram>>& shaders) override;
+    std::vector<VertexAttributes> attributes() const override
+    {
+        std::vector<VertexAttributes> attrs;
+        attrs.push_back(VertexAttributes::TextureCoords);
+        attrs.push_back(VertexAttributes::Normals);
+        return attrs;
     }
 
 protected:
-    QLight* _light[2];
-    float _specularIntensity;
-    float _specularPower;
+    QLight* m_lights[2];
+    float m_specularIntensity;
+    float m_specularPower;
 
-    void _findLights(QScene* scene);
+    void _findLights(QScene* scene, const QDrawObject3D* drawObject);
+
+public:
+    class UniformLocationOmniOmni: public QSh_Texture::UniformLocation
+    {
+    public:
+        void bindParameters(QScrollEngineContext* context,
+                            QOpenGLShaderProgram* program,
+                            const QSh_Light* shader,
+                            const QSceneObject3D* sceneObject) const;
+        void loadLocations(QOpenGLShaderProgram* shader);
+    protected:
+        int matrixW;
+        int ambientColor;
+        int light0_color;
+        int light0_position;
+        int light0_radius;
+        int light0_soft;
+        int light1_color;
+        int light1_position;
+        int light1_radius;
+        int light1_soft;
+
+        virtual void bindLightParameters(QScrollEngineContext* context,
+                                         QOpenGLShaderProgram* program,
+                                         const QSh_Light* shader,
+                                         const QSceneObject3D* sceneObject) const;
+    };
+
+    class UniformLocationOmniSpot: public UniformLocationOmniOmni
+    {
+    public:
+        void loadLocations(QOpenGLShaderProgram* shader);
+    protected:
+        int light1_dir;
+        int light1_spotCutOff;
+
+        void bindLightParameters(QScrollEngineContext* context,
+                                 QOpenGLShaderProgram* program,
+                                 const QSh_Light* shader,
+                                 const QSceneObject3D* sceneObject) const override;
+    };
+
+    class UniformLocationSpotSpot: public UniformLocationOmniSpot
+    {
+    public:
+        void loadLocations(QOpenGLShaderProgram* shader);
+    protected:
+        int light0_dir;
+        int light0_spotCutOff;
+
+        void bindLightParameters(QScrollEngineContext* context,
+                                 QOpenGLShaderProgram* program,
+                                 const QSh_Light* shader,
+                                 const QSceneObject3D* sceneObject) const override;
+    };
+
+    class UniformLocationSpecular
+    {
+    protected:
+        int specularIntensity;
+        int specularPower;
+        int viewPosition;
+
+        void bindSpecularParameters(QOpenGLShaderProgram* program,
+                                    const QSh_Light* shader,
+                                    const QScene* scene) const;
+    };
+
+    class UniformLocationOmniOmniSpecular: public UniformLocationOmniOmni,
+                                           public UniformLocationSpecular
+    {
+    public:
+        void loadLocations(QOpenGLShaderProgram* shader);
+    protected:
+        void bindLightParameters(QScrollEngineContext* context,
+                                 QOpenGLShaderProgram* program,
+                                 const QSh_Light* shader,
+                                 const QSceneObject3D* sceneObject) const override;
+    };
+
+    class UniformLocationOmniSpotSpecular: public UniformLocationOmniSpot,
+                                           public UniformLocationSpecular
+    {
+    public:
+        void loadLocations(QOpenGLShaderProgram* shader);
+    protected:
+        void bindLightParameters(QScrollEngineContext* context,
+                                 QOpenGLShaderProgram* program,
+                                 const QSh_Light* shader,
+                                 const QSceneObject3D* sceneObject) const override;
+    };
+
+    class UniformLocationSpotSpotSpecular: public UniformLocationSpotSpot,
+                                           public UniformLocationSpecular
+    {
+    public:
+        void loadLocations(QOpenGLShaderProgram* shader);
+    protected:
+        void bindLightParameters(QScrollEngineContext* context,
+                                 QOpenGLShaderProgram* program,
+                                 const QSh_Light* shader,
+                                 const QSceneObject3D* sceneObject) const override;
+    };
+
+    static const QSharedPointer<UniformLocationOmniOmni>* getLocations() { return m_locations; }
+
+private:
+    static QSharedPointer<UniformLocationOmniOmni> m_locations[6];
 };
 
 }

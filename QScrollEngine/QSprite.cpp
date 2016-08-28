@@ -8,139 +8,136 @@
 
 namespace QScrollEngine {
 
-QSprite::QSprite(QScene* scene):QSceneObject3D(), QDrawObject3D(this), QShObject3D(this)
+QSprite::QSprite(QScene* scene):QDrawObject3D(this), QSceneObject3D(), QShObject3D()
 {
-    _parentEntity = nullptr;
-    //_parentSceneObject = this;
-    _scale = QVector2D(1.0f, 1.0f);
-    _angle = 0.0f;
-    _visibledForCamera = false;
-    _isAlpha = false;
-    _scene = scene;
-    if (_scene) {
-        _scene->_addSprite(this);
-    }
-    _shader->setSceneObject(this);
+    m_parentEntity = nullptr;
+    //_sceneObject = this;
+    m_scale = QVector2D(1.0f, 1.0f);
+    m_angle = 0.0f;
+    m_visibledForCamera = false;
+    m_isAlpha = false;
+    m_scene = scene;
+    if (m_scene)
+        m_scene->_addSprite(this);
 }
 
-QSprite::QSprite(QEntity* parentEntity):QSceneObject3D(), QDrawObject3D(this), QShObject3D(this)
+QSprite::QSprite(QEntity* parentEntity):QDrawObject3D(this), QSceneObject3D(), QShObject3D()
 {
-    _parentEntity = nullptr;
-    _scene = nullptr;
-    //_parentSceneObject = this;
-    _scale = QVector2D(1.0f, 1.0f);
-    _angle = 0.0f;
-    _visibledForCamera = false;
-    _isAlpha = false;
+    m_parentEntity = nullptr;
+    m_scene = nullptr;
+    //_sceneObject = this;
+    m_scale = QVector2D(1.0f, 1.0f);
+    m_angle = 0.0f;
+    m_visibledForCamera = false;
+    m_isAlpha = false;
     if (parentEntity) {
         parentEntity->addChild(this);
     } else {
-        _scene = nullptr;
+        m_scene = nullptr;
     }
-    _shader->setSceneObject(this);
 }
 
 QSprite::~QSprite()
 {
-    if (_parentEntity)
-        _parentEntity->_deleteChild(this);
-    else if (_scene)
-        _scene->_deleteSprite(this);
+    if (m_parentEntity)
+        m_parentEntity->_deleteChild(this);
+    else if (m_scene)
+        m_scene->_deleteSprite(this);
 }
 
 void QSprite::setParentEntity(QEntity* entity)
 {
     if (entity)
         entity->addChild(this);
-    else if (_parentEntity)
-        _parentEntity->_deleteChild(this);
+    else if (m_parentEntity)
+        m_parentEntity->_deleteChild(this);
 }
 
 bool QSprite::setParentEntity_saveTransform(QEntity* entity)
 {
     if (entity)
         return entity->addChild_saveTransform(this);
-    else if (_parentEntity) {
+    else if (m_parentEntity) {
         updateTransform();
-        _parentEntity->_deleteChild(this);
-        _position = _globalPosition;
+        m_parentEntity->_deleteChild(this);
+        m_position = m_globalPosition;
     }
     return false;
 }
 
 void QSprite::setParentScene(QScene* scene)
 {
-    if (_parentEntity) {
-        _parentEntity->_deleteChild(this);
-    } else if (_scene) {
-        _scene->_deleteSprite(this);
+    if (m_parentEntity) {
+        m_parentEntity->_deleteChild(this);
+    } else if (m_scene) {
+        m_scene->_deleteSprite(this);
     }
-    _scene = scene;
-    if (_scene)
-        _scene->_addSprite(this);
+    m_scene = scene;
+    if (m_scene)
+        m_scene->_addSprite(this);
 }
 
 void QSprite::setParentScene_saveTransform(QScene* scene)
 {
-    if (_parentEntity) {
+    if (m_parentEntity) {
         updateTransform();
-        _parentEntity->_deleteChild(this);
-        _position = _globalPosition;
-    } else if (_scene) {
-        _scene->_deleteSprite(this);
+        m_parentEntity->_deleteChild(this);
+        m_position = m_globalPosition;
+    } else if (m_scene) {
+        m_scene->_deleteSprite(this);
     }
-    _scene = scene;
-    if (_scene)
-        _scene->_addSprite(this);
+    m_scene = scene;
+    if (m_scene)
+        m_scene->_addSprite(this);
 }
 
 
 QSprite* QSprite::copy() const
 {
-    QSprite* s = new QSprite(_scene);
-    s->setShader(_shader->copy());
-    s->setAlpha(_isAlpha);
-    s->setPosition(_position);
-    s->_angle = _angle;
-    s->_scale = _scale;
+    QSprite* s = new QSprite(m_scene);
+    s->setShader(m_shader->copy());
+    s->setAlpha(m_isAlpha);
+    s->setPosition(m_position);
+    s->m_angle = m_angle;
+    s->m_scale = m_scale;
     return s;
 }
 
 void QSprite::_updateMatrixWorld(const QQuaternion& globalOrientation)
 {
-    QOtherMathFunctions::quaternionToMatrix(globalOrientation, _matrix.world);
+    QOtherMathFunctions::quaternionToMatrix(globalOrientation, m_matrix.world);
     /*_matrix.world(3, 0) = 0.0f;
     _matrix.world(3, 1) = 0.0f;
     _matrix.world(3, 2) = 0.0f;
     _matrix.world(3, 3) = 1.0f;*/
-    _matrix.world(0, 3) = _globalPosition.x();
-    _matrix.world(1, 3) = _globalPosition.y();
-    _matrix.world(2, 3) = _globalPosition.z();
-    _matrix.world(0, 0) *= _scale.x();
-    _matrix.world(1, 0) *= _scale.x();
-    _matrix.world(2, 0) *= _scale.x();
-    _matrix.world(0, 1) *= _scale.y();
-    _matrix.world(1, 1) *= _scale.y();
-    _matrix.world(2, 1) *= _scale.y();
+    m_matrix.world(0, 3) = m_globalPosition.x();
+    m_matrix.world(1, 3) = m_globalPosition.y();
+    m_matrix.world(2, 3) = m_globalPosition.z();
+    m_matrix.world(0, 0) *= m_scale.x();
+    m_matrix.world(1, 0) *= m_scale.x();
+    m_matrix.world(2, 0) *= m_scale.x();
+    m_matrix.world(0, 1) *= m_scale.y();
+    m_matrix.world(1, 1) *= m_scale.y();
+    m_matrix.world(2, 1) *= m_scale.y();
 }
 
 void QSprite::_solveTransformFromParent(const QMatrix4x4& parentMatrixWorld)
 {
-    _globalPosition = QOtherMathFunctions::transform(parentMatrixWorld, _position);
-    _transformHasChanged = false;
+    m_globalPosition = QOtherMathFunctions::transform(parentMatrixWorld, m_position);
+    m_transformHasChanged = false;
 }
 
 void QSprite::updateTransform()
 {
-    if (_parentEntity) {
-        if (_parentEntity->transformHasChanged()) {
-            _parentEntity->updateTransform();
-            _solveTransformFromParent(_parentEntity->_matrix.world);
-        } else if (_transformHasChanged)
-            _solveTransformFromParent(_parentEntity->_matrix.world);
-    } else if (_transformHasChanged){
-        _globalPosition = _position;
-        _transformHasChanged = false;
+    if (m_parentEntity) {
+        if (m_parentEntity->transformHasChanged()) {
+            m_parentEntity->updateTransform();
+            _solveTransformFromParent(m_parentEntity->m_matrix.world);
+        } else if (m_transformHasChanged)
+            _solveTransformFromParent(m_parentEntity->m_matrix.world);
+    } else if (m_transformHasChanged){
+        m_globalPosition = m_position;
+        m_transformHasChanged = false;
     }
 }
 

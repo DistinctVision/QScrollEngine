@@ -26,10 +26,6 @@ class QScene:
         public QObject
 {
     Q_OBJECT
-    friend class QScrollEngineContext;
-    friend class QSprite;
-    friend class QEntity;
-    friend class QLight;
 
 public:
     typedef struct CameraInfo
@@ -46,61 +42,72 @@ public:
     QQuaternion orientation;
     QVector3D scale;
 
-    int order() const { return _order; }
+    QScrollEngineContext* parentContext() const { return m_parentContext; }
+    QScene();
+    QScene(QScrollEngineContext* parentContext, int order = 0);
+    ~QScene();
+
+    bool enabled() const { return m_enabled; }
+    void setEnabled(bool enabled) { m_enabled = enabled; }
+
+    void setParentContext(QScrollEngineContext* parentContext);
+    void clearScene();
+
+    int order() const { return m_order; }
     void setOrder(int order);
 
-    QBoundingBox boundingBox() const { return _boundingBox; }
+    QBoundingBox boundingBox() const { return m_boundingBox; }
     void solveBoundingBox(float expand = 0.0f);
 
-    void setAmbientColor(const QColor& color) { _ambientColor = color; }
-    void setAmbientColor(int r, int g, int b, int a = 255) { _ambientColor.setRgb(r, g, b, a); }
-    QColor ambientColor() const { return _ambientColor; }
+    void setAmbientColor(const QColor& color) { m_ambientColor = color; }
+    void setAmbientColor(int r, int g, int b, int a = 255) { m_ambientColor.setRgb(r, g, b, a); }
+    QColor ambientColor() const { return m_ambientColor; }
 
     void updateCameraInfo(QCamera3D* camera);
-    CameraInfo cameraInfo() const { return _cameraInfo; }
-    QVector3D cameraPosition() const { return _cameraInfo.position; }
-    QQuaternion cameraOrientation() const { return _cameraInfo.orientation; }
-    QVector3D cameraLocalX() const { return _cameraInfo.localX; }
-    QVector3D cameraLocalY() const { return _cameraInfo.localY; }
-    QVector3D cameraLocalZ() const { return _cameraInfo.localZ; }
+    CameraInfo cameraInfo() const { return m_cameraInfo; }
+    QVector3D cameraPosition() const { return m_cameraInfo.position; }
+    QQuaternion cameraOrientation() const { return m_cameraInfo.orientation; }
+    QVector3D cameraLocalX() const { return m_cameraInfo.localX; }
+    QVector3D cameraLocalY() const { return m_cameraInfo.localY; }
+    QVector3D cameraLocalZ() const { return m_cameraInfo.localZ; }
 
-    QScrollEngineContext* parentContext() const { return _parentContext; }
-    QScene(QScrollEngineContext* parentContext = nullptr, int order = 0);
-    virtual ~QScene();
-    void setParentContext(QScrollEngineContext* parentContext);
-
-    int countSprites() const { return  _sprites.size(); }
-    QSprite* sprite(int i) const { return _sprites[i]; }
-    int countEntities() const { return _entities.size(); }
-    QEntity* entity(int i) const { return _entities[i]; }
-    int countLights() const { return _lights.size(); }
-    QLight* light(int i) const { return _lights[i]; }
+    std::size_t countSprites() const { return  m_sprites.size(); }
+    QSprite* sprite(std::size_t i) const { return m_sprites[i]; }
+    std::size_t countEntities() const { return m_entities.size(); }
+    QEntity* entity(std::size_t i) const { return m_entities[i]; }
+    std::size_t countLights() const { return m_lights.size(); }
+    QLight* light(std::size_t i) const { return m_lights[i]; }
 
     QEntity* findEntity(const QString& name) const;
     QEntity* findEntityWithChilds(const QString& name) const;
 
 signals:
+    void parentContextChanged();
     void beginDrawing();
     void beginDrawingAlphaObjects();
     void endDrawing();
     void deleting();
 
 private:
-    int _index;
-    int _order;
+    friend class QScrollEngineContext;
+    friend class QSprite;
+    friend class QEntity;
+    friend class QLight;
 
-    CameraInfo _cameraInfo;
-    QBoundingBox _boundingBox;
-    QColor _ambientColor;
+    std::size_t m_index;
+    int m_order;
 
-    int _currentResetedSprite;
-    int _currentResetedEntity;
+    bool m_enabled;
 
-    QScrollEngineContext* _parentContext;
-    std::vector<QSprite*> _sprites;
-    std::vector<QEntity*> _entities;
-    std::vector<QLight*> _lights;
-    QMesh* _quad;
+    CameraInfo m_cameraInfo;
+    QBoundingBox m_boundingBox;
+    QColor m_ambientColor;
+
+    QScrollEngineContext* m_parentContext;
+    std::vector<QSprite*> m_sprites;
+    std::vector<QEntity*> m_entities;
+    std::vector<QLight*> m_lights;
+    QMesh* m_quad;
 
     void _addSprite(QSprite* sprite);
     void _deleteSprite(QSprite* sprite);

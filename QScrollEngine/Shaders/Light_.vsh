@@ -20,9 +20,10 @@ varying vec2 texcoord;
 
 void main()
 {
-    normal = vec3(dot(vertex_normal, vec3(matrix_w[0][0], matrix_w[1][0], matrix_w[2][0])),
+    normal = normalize(
+           vec3(dot(vertex_normal, vec3(matrix_w[0][0], matrix_w[1][0], matrix_w[2][0])),
                 dot(vertex_normal, vec3(matrix_w[0][1], matrix_w[1][1], matrix_w[2][1])),
-                dot(vertex_normal, vec3(matrix_w[0][2], matrix_w[1][2], matrix_w[2][2])));
+                dot(vertex_normal, vec3(matrix_w[0][2], matrix_w[1][2], matrix_w[2][2]))));
     vec4 p = matrix_w * vertex_position;
     position = p.xyz;
     texcoord = vertex_texcoord;

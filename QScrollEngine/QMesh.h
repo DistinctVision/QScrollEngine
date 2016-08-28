@@ -3,7 +3,9 @@
 
 #include <vector>
 #include <cassert>
+#include <functional>
 #include <QObject>
+#include <QVector>
 #include <QVector2D>
 #include <QVector3D>
 #include <QMatrix4x4>
@@ -29,13 +31,21 @@ class QMesh:
         public QObject
 {
     Q_OBJECT
-    friend class QScrollEngineContext;
-    friend class QScene;
-    friend class QEntity;
-    friend class QPartEntity;
-    //friend class QQuickHull;
 
 public:
+    typedef struct RgbColor
+    {
+        float red, green, blue;
+
+        RgbColor() { red = green = blue = 255; }
+        RgbColor(float red, float green, float blue)
+        {
+            this->red = red;
+            this->green = green;
+            this->blue = blue;
+        }
+    } RgbColor;
+
     QMesh(QScrollEngineContext* parentContext);
     QMesh(QScrollEngineContext* parentContext, QMesh* mesh);
     QMesh(QScene* scene);
@@ -43,126 +53,139 @@ public:
     ~QMesh();
 
     void updateLocalBoundingBox();
-    QBoundingBox localBoundingBox() const { return _localBoundingBox; }
-    QScrollEngineContext* parentContext() const { return _parentContext; }
+    void setLocalBoundingBox(const QBoundingBox& boundingBox);
+    QBoundingBox localBoundingBox() const { return m_localBoundingBox; }
+    QScrollEngineContext* parentContext() const { return m_parentContext; }
     void setParentContext(QScrollEngineContext* parentContext);
 
-    void setEnable_vertex_normal(bool enable) { _enable_vertex_normal = enable;
-                                                if (_enable_vertex_normal) _normals.resize(_vertices.size()); }
-    bool enable_vertex_normal() const { return _enable_vertex_normal; }
+    std::size_t countVertices() const { return m_vertices.size(); }
+    virtual void setCountVertices(std::size_t count);
+    void setVertexPosition(std::size_t i, const QVector3D& vertex) { m_vertices[i] = vertex; }
+    const std::vector<GLuint>& elements() const { return m_elements; }
+    const std::vector<QVector3D>& vertices() const { return m_vertices; }
+    const std::vector<QVector2D>& textureCoords() const { return m_textureCoords; }
+    const std::vector<QVector3D>& normals() const { return m_normals; }
+    const std::vector<RgbColor>& colors() const { return m_rgbColors; }
+    std::vector<GLuint>& elements() { return m_elements; }
+    std::vector<QVector3D>& vertices() { return m_vertices; }
+    std::vector<QVector2D>& textureCoords() { return m_textureCoords; }
+    std::vector<QVector3D>& normals() { return m_normals; }
+    std::vector<RgbColor>& colors() { return m_rgbColors; }
+    void deleteVertexPositions() { m_vertices.clear(); }
+    void deleteTextureCoords() { m_textureCoords.clear(); }
+    void deleteVertexNormals() { m_normals.clear(); }
+    void deleteRgbColors() { m_rgbColors.clear(); }
+    virtual void deleteVertices()
+    {
+        deleteVertexPositions();
+        deleteTextureCoords();
+        deleteVertexNormals();
+        deleteRgbColors();
+    }
+    void clear();
 
-    void setUsagePatternVertices(QOpenGLBuffer::UsagePattern pattern) { _vboIds[1].setUsagePattern(pattern);
-                                                                        _vboIds[2].setUsagePattern(pattern);
-                                                                        _vboIds[3].setUsagePattern(pattern); }
-    QOpenGLBuffer::UsagePattern usagePatternVertices() const { return _vboIds[1].usagePattern(); }
-    void setUsagePatternElements(QOpenGLBuffer::UsagePattern pattern) { _vboIds[0].setUsagePattern(pattern); }
-    QOpenGLBuffer::UsagePattern usagePatternElements() const { return _vboIds[0].usagePattern(); }
+    QVector3D vertexPosition(std::size_t i) const { return m_vertices[i]; }
+    QVector2D vertexTextureCoord(std::size_t i) const { return m_textureCoords[i]; }
+    void setVertexTextureCoord(std::size_t i, const QVector2D& textureCoord) { m_textureCoords[i] = textureCoord; }
+    QVector3D vertexNormal(std::size_t i) const { return m_normals[i]; }
+    void setVertexNormal(std::size_t i, const QVector3D& normal) { m_normals[i] = normal; }
+    RgbColor vertexRgbColor(std::size_t i) const { return m_rgbColors[i]; }
+    void setVertexRgbColor(std::size_t i, const RgbColor& color) { m_rgbColors[i] = color; }
 
-    unsigned int countVertices() const { return _vertices.size(); }
-    void setCountVertices(unsigned int count);
-    void setVertexPosition(unsigned int i, const QVector3D& vertex) { _vertices[i] = vertex; }
-    const std::vector<QVector3D>& vertices() const { return _vertices; }
-    const std::vector<QVector2D>& textureCoords() const { return _textureCoords; }
-    const std::vector<QVector3D>& normals() const { return _normals; }
-    QVector3D vertexPosition(unsigned int i) const { return _vertices[i]; }
-    QVector2D vertexTextureCoord(unsigned int i) const { return _textureCoords[i]; }
-    void setVertexTextureCoord(unsigned int i, const QVector2D& textureCoord) { _textureCoords[i] = textureCoord; }
-    QVector3D vertexNormal(unsigned int i) const { return _normals[i]; }
-    void setVertexNormal(unsigned int i, const QVector3D& normal) { _normals[i] = normal; }
+    GLsizei sizeOfElement() const { return m_sizeOfElement; }
+    void setSizeOfELement(GLsizei size) { if (m_sizeOfElement != size) { deleteElements(); m_sizeOfElement = size; } }
 
-    GLsizei sizeOfElement() const { return _sizeOfElement; }
-    void setSizeOfELement(GLsizei size) { if (_sizeOfElement != size) { deleteElements(); _sizeOfElement = size; } }
-
-    unsigned int countElements() const { return _elements.size() / _sizeOfElement; }
+    std::size_t countElements() const { return m_elements.size() / m_sizeOfElement; }
     void addElement(const GLuint* element)
     {
-        for (int i=0; i<_sizeOfElement; ++i)
-            _elements.push_back(element[i]);
+        for (int i=0; i<m_sizeOfElement; ++i)
+            m_elements.push_back(element[i]);
     }
-    void setCountElements(unsigned int count) { _elements.resize(count * _sizeOfElement); }
-    void setElement(unsigned int i, const GLuint* element)
+    void setCountElements(std::size_t count) { m_elements.resize(count * m_sizeOfElement); }
+    void setElement(std::size_t i, const GLuint* element)
     {
         GLuint* e = this->element(i);
-        for (int j=0; j<_sizeOfElement; ++j)
+        for (int j=0; j<m_sizeOfElement; ++j)
             e[j] = element[j];
     }
-    const GLuint* element(unsigned int i) const { return &_elements.at(i * _sizeOfElement); }
-    GLuint* element(unsigned int i) { return &_elements.at(i * _sizeOfElement); }
-    void deleteElement(unsigned int i) {
-        _elements.erase(_elements.begin() + i * _sizeOfElement); }
-    void deleteElement(unsigned int i, unsigned int n) {
-        _elements.erase(_elements.begin() + i * _sizeOfElement, _elements.begin() + (i + n) * _sizeOfElement); }
-    void deleteElements() { _elements.clear(); }
+    const GLuint* element(std::size_t i) const { return &m_elements.at(i * m_sizeOfElement); }
+    GLuint* element(std::size_t i) { return &m_elements.at(i * m_sizeOfElement); }
+    void deleteElement(std::size_t i) {
+        m_elements.erase(m_elements.begin() + i * m_sizeOfElement); }
+    void deleteElement(std::size_t i, std::size_t n) {
+        m_elements.erase(m_elements.begin() + i * m_sizeOfElement, m_elements.begin() + (i + n) * m_sizeOfElement); }
+    void deleteElements() { m_elements.clear(); }
 
-    bool isTriangles() const { return (_sizeOfElement == 3); }
-    bool isLines() const { return (_sizeOfElement == 2); }
-    bool isPoints() const { return (_sizeOfElement == 1); }
+    bool isTriangles() const { return (m_sizeOfElement == 3); }
+    bool isLines() const { return (m_sizeOfElement == 2); }
+    bool isPoints() const { return (m_sizeOfElement == 1); }
 
-    void setCountTriangles(unsigned int count) { QMESH_ASSERT(isTriangles()); _elements.resize(count * 3); }
-    int countTriangles() const { QMESH_ASSERT(isTriangles()); return _elements.size() / 3; }
-    void setTriangle(unsigned int i, GLuint v1, GLuint v2, GLuint v3)
+    void setCountTriangles(std::size_t count) { QMESH_ASSERT(isTriangles()); m_elements.resize(count * 3); }
+    int countTriangles() const { QMESH_ASSERT(isTriangles()); return m_elements.size() / 3; }
+    void setTriangle(std::size_t i, GLuint v1, GLuint v2, GLuint v3)
     {
         QMESH_ASSERT(isTriangles());
-        GLuint* triangle = &_elements[i * 3];
+        GLuint* triangle = &m_elements[i * 3];
         triangle[0] = v1;
         triangle[1] = v2;
         triangle[2] = v3;
     }
-    const GLuint* triangle(unsigned int i) const { QMESH_ASSERT(isTriangles()); return &_elements[i * 3]; }
-    GLuint* triangle(unsigned int i) { QMESH_ASSERT(isTriangles()); return &_elements[i * 3]; }
+    const GLuint* triangle(std::size_t i) const { QMESH_ASSERT(isTriangles()); return &m_elements[i * 3]; }
+    GLuint* triangle(std::size_t i) { QMESH_ASSERT(isTriangles()); return &m_elements[i * 3]; }
     void addTriangle(GLuint v1, GLuint v2, GLuint v3)
     {
         QMESH_ASSERT(isTriangles());
-        _elements.push_back(v1);
-        _elements.push_back(v2);
-        _elements.push_back(v3);
+        m_elements.push_back(v1);
+        m_elements.push_back(v2);
+        m_elements.push_back(v3);
     }
-    void deleteTriangle(unsigned int i) { QMESH_ASSERT(isTriangles()); _elements.erase(_elements.begin() + (i * 3)); }
-    void deleteTriangles(unsigned int i, unsigned int n) { QMESH_ASSERT(isTriangles());
-                                                           _elements.erase(_elements.begin() + (i * 3), _elements.begin() + ((i + n) * 3)); }
+    void deleteTriangle(std::size_t i) { QMESH_ASSERT(isTriangles()); m_elements.erase(m_elements.begin() + (i * 3)); }
+    void deleteTriangles(std::size_t i, unsigned int n) { QMESH_ASSERT(isTriangles());
+                                                           m_elements.erase(m_elements.begin() + (i * 3),
+                                                                           m_elements.begin() + ((i + n) * 3)); }
 
-    void setCountLines(unsigned int count) { QMESH_ASSERT(isLines()); _elements.resize(count * 2); }
-    int countLines() const { QMESH_ASSERT(isLines()); return _elements.size() / 2; }
-    void setLine(unsigned int i, GLuint v1, GLuint v2)
+    void setCountLines(std::size_t count) { QMESH_ASSERT(isLines()); m_elements.resize(count * 2); }
+    int countLines() const { QMESH_ASSERT(isLines()); return m_elements.size() / 2; }
+    void setLine(std::size_t i, GLuint v1, GLuint v2)
     {
         QMESH_ASSERT(isLines());
-        GLuint* triangle = &_elements.at(i * 2);
+        GLuint* triangle = &m_elements.at(i * 2);
         triangle[0] = v1;
         triangle[1] = v2;
     }
-    const GLuint* line(unsigned int i) const { QMESH_ASSERT(isLines()); return &_elements.at(i * 2); }
-    GLuint* line(unsigned int i) { QMESH_ASSERT(isLines()); return &_elements.at(i * 2); }
+    const GLuint* line(std::size_t i) const { QMESH_ASSERT(isLines()); return &m_elements.at(i * 2); }
+    GLuint* line(std::size_t i) { QMESH_ASSERT(isLines()); return &m_elements.at(i * 2); }
     void addLine(GLuint v1, GLuint v2)
     {
         QMESH_ASSERT(isLines());
-        _elements.push_back(v1);
-        _elements.push_back(v2);
+        m_elements.push_back(v1);
+        m_elements.push_back(v2);
     }
-    void deleteLine(unsigned int i) { QMESH_ASSERT(isLines()); _elements.erase(_elements.begin() + (i * 2)); }
-    void deleteLines(unsigned int i, unsigned int n) { QMESH_ASSERT(isLines());
-                                                       _elements.erase(_elements.begin() + i * 2, _elements.begin() + ((i + n) * 2)); }
+    void deleteLine(std::size_t i) { QMESH_ASSERT(isLines()); m_elements.erase(m_elements.begin() + (i * 2)); }
+    void deleteLines(std::size_t i, std::size_t n) { QMESH_ASSERT(isLines());
+                                                     m_elements.erase(m_elements.begin() + i * 2, m_elements.begin() + ((i + n) * 2)); }
 
-    void setCountPoints(unsigned int count) { QMESH_ASSERT(isPoints()); _elements.resize(count); }
-    int countPoints() const { QMESH_ASSERT(isPoints()); return _elements.size() / 2; }
-    void setPoint(unsigned int i, GLuint v1)
+    void setCountPoints(std::size_t count) { QMESH_ASSERT(isPoints()); m_elements.resize(count); }
+    int countPoints() const { QMESH_ASSERT(isPoints()); return m_elements.size() / 2; }
+    void setPoint(std::size_t i, GLuint v1)
     {
         QMESH_ASSERT(isPoints());
-        _elements[i] = v1;
+        m_elements[i] = v1;
     }
-    const GLuint* point(unsigned int i) const { QMESH_ASSERT(isPoints()); return &_elements.at(i); }
-    GLuint* point(unsigned int i) { QMESH_ASSERT(isPoints()); return &_elements.at(i); }
+    const GLuint* point(std::size_t i) const { QMESH_ASSERT(isPoints()); return &m_elements.at(i); }
+    GLuint* point(std::size_t i) { QMESH_ASSERT(isPoints()); return &m_elements.at(i); }
     void addPoint(GLuint v1)
     {
         QMESH_ASSERT(isPoints());
-        _elements.push_back(v1);
+        m_elements.push_back(v1);
     }
-    void deletePoint(unsigned int i) { QMESH_ASSERT(isPoints()); _elements.erase(_elements.begin() + i); }
-    void deletePoints(unsigned int i, unsigned int n) { QMESH_ASSERT(isPoints());
-                                                       _elements.erase(_elements.begin() + i, _elements.begin() + (i + n)); }
+    void deletePoint(std::size_t i) { QMESH_ASSERT(isPoints()); m_elements.erase(m_elements.begin() + i); }
+    void deletePoints(std::size_t i, std::size_t n) { QMESH_ASSERT(isPoints());
+                                                      m_elements.erase(m_elements.begin() + i, m_elements.begin() + (i + n)); }
 
     bool checkIndicesOfElements();
-    void deleteVertices() { _vertices.clear(); _textureCoords.clear(); _normals.clear(); }
-    void clear() { deleteVertices(); deleteElements(); }
+    bool checkElements() const;
+    bool checkVertices() const;
 
     void moveVertices(const QVector3D& deltaPosition);
     void moveVertices(float x, float y, float z) { moveVertices(QVector3D(x, y, z)); }
@@ -178,38 +201,63 @@ public:
     void transformTextureCoords(const QMatrix3x3& transform);
     void flipTriangles();
     void flipNormals();
+    void transformNormals(const QMatrix3x3& transform);
     void updateNormals();
-    void swapDataOfVertices(std::vector<QVector3D>& positions, std::vector<QVector2D>& textureCoords, std::vector<QVector3D>& normals);
-    void swapDataOfTriangles(std::vector<GLuint>& triangles);
+    void setUsagePatternOfElements(QOpenGLBuffer::UsagePattern usagePattern);
+    QOpenGLBuffer::UsagePattern usagePatternOfElements() const;
+    void setUsagePatternOfVertexPositions(QOpenGLBuffer::UsagePattern usagePattern);
+    QOpenGLBuffer::UsagePattern usagePatternOfVertexPositions() const;
+    void setUsagePatternOfVertexAttributes(QSh::VertexAttributes attribute, QOpenGLBuffer::UsagePattern usagePattern);
+    QOpenGLBuffer::UsagePattern usagePatternOfVertexAttributes(QSh::VertexAttributes attribute) const;
+    void enableVertexAttribute(QSh::VertexAttributes attribute);
+    void disableAttribute(QSh::VertexAttributes attribute);
+    bool vertexAttributeIsEnabled(QSh::VertexAttributes attribute);
+    void disableAllVertexAttributes();
     void applyChanges();
-    void applyChangesOfVertexPositions();
-    void applyChangesOfVertexTextureCoords();
-    void applyChangesOfVertexNormals();
     void applyChangesOfElements();
-    int countUsedParts() const { return _countUsedParts; }
+    void applyChangesOfVertexPositions();
+    void applyChangesOfAttrtibute(QSh::VertexAttributes attribute);
+    bool bind(const std::vector<QSh::VertexAttributes>& attributes) const;
+
+    int countUsedParts() const { return m_countUsedParts; }
     bool pickRay(QVector3D& resultPoint, QVector3D& resultTriangleDir,
                  const QVector3D& rayPoint, const QVector3D& rayDir) const;
     bool fastPickRay(QVector3D& resultPoint, QVector3D& resultTriangleDir,
                  const QVector3D& rayPoint, const QVector3D& rayDir) const;
 
-
 signals:
     void changedLocalBoundingBox();
 
-private:
-    QScrollEngineContext* _parentContext;
-    QOpenGLBuffer _vboIds[4];
-    bool _enable_vertex_normal;
-    std::vector<QVector3D> _vertices;
-    std::vector<QVector2D> _textureCoords;
-    std::vector<QVector3D> _normals;
-    std::vector<GLuint> _elements;
-    GLsizei _sizeOfElement;
-    int _countUsedParts;
-    QBoundingBox _localBoundingBox;
+protected:
+    friend class QScrollEngineContext;
+    friend class QScene;
+    friend class QEntity;
+    friend class QPartEntity;
+    //friend class QQuickHull;
 
+    typedef struct Buffer {
+        QOpenGLBuffer vboIds;
+        std::function<void()> applyChanges;
+        std::function<void()> clear;
+        std::function<void()> bind;
+    } Buffer;
+
+    QScrollEngineContext* m_parentContext;
+    QVector<Buffer> m_buffers;
+    std::vector<GLuint> m_elements;
+    std::vector<QVector3D> m_vertices;
+    std::vector<QVector2D> m_textureCoords;
+    std::vector<QVector3D> m_normals;
+    std::vector<RgbColor> m_rgbColors;
+    GLsizei m_sizeOfElement;
+    int m_countUsedParts;
+    QBoundingBox m_localBoundingBox;
+
+    virtual bool _initBuffers();
     void _deleteMeshInEverywhere();
+    void _deleteBuffers();
 };
 
 }
+
 #endif

@@ -8,7 +8,7 @@ namespace QScrollEngine {
 QSpotLight::QSpotLight(bool isStatic):
     QLight(isStatic)
 {
-    _type = Spot;
+    m_type = Type::Spot;
     setDirectional(QVector3D(1.0f, 0.0f, 0.0f));
     setAngle(0.1f);
 }
@@ -16,7 +16,7 @@ QSpotLight::QSpotLight(bool isStatic):
 QSpotLight::QSpotLight(QScene* scene, bool isStatic):
     QLight(isStatic)
 {
-    _type = Spot;
+    m_type = Type::Spot;
     setDirectional(QVector3D(1.0f, 0.0f, 0.0f));
     setAngle(0.1f);
     setParentScene(scene);

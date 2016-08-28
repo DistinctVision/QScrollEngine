@@ -14,16 +14,16 @@ QCamera3D::QCamera3D()
 
 void QCamera3D::calculateMatrix()
 {
-    _matrixView.setToIdentity();
-    _matrixView.translate(_localPosition);
-    _matrixView.rotate(_localOrientation);
-    _matrixView = _matrixView.inverted();
-    _matrixViewProj = _matrixProj * _matrixView;
+    m_matrixView.setToIdentity();
+    m_matrixView.translate(m_localPosition);
+    m_matrixView.rotate(m_localOrientation);
+    m_matrixView = m_matrixView.inverted();
+    m_matrixViewProj = m_matrixProj * m_matrixView;
 }
 
 void QCamera3D::calculateFrustum()
 {
-    frustum.calculate(_matrixViewProj);
+    frustum.calculate(m_matrixViewProj);
 }
 
 void QCamera3D::setProjectionParameters(float zNear, float zFar, float fieldOfView, int width, int height)
@@ -38,39 +38,39 @@ void QCamera3D::setProjectionParameters(float zNear, float zFar, float fieldOfVi
 
 void QCamera3D::swapAspectXY()
 {
-    std::swap(_matrixProj(0, 0), _matrixProj(1, 1));
+    std::swap(m_matrixProj(0, 0), m_matrixProj(1, 1));
 }
 
 void QCamera3D::calculateProjectionMatrix()
 {
-    _matrixProj.setToIdentity();
-    _matrixProj.perspective(_fov, _aspect, _zNear, _zFar);
+    m_matrixProj.setToIdentity();
+    m_matrixProj.perspective(_fov, _aspect, _zNear, _zFar);
 }
 
 void QCamera3D::setScene(QScene* scene)
 {
     if (scene) {
-        _scenePosition = scene->position;
-        _sceneOrientation = scene->orientation;
-        _sceneScale = scene->scale;
+        m_scenePosition = scene->position;
+        m_sceneOrientation = scene->orientation;
+        m_sceneScale = scene->scale;
     } else {
-        _scenePosition.setX(0.0f);
-        _scenePosition.setY(0.0f);
-        _scenePosition.setZ(0.0f);
-        _sceneOrientation.setScalar(1.0f);
-        _sceneOrientation.setVector(0.0f, 0.0f, 0.0f);
+        m_scenePosition.setX(0.0f);
+        m_scenePosition.setY(0.0f);
+        m_scenePosition.setZ(0.0f);
+        m_sceneOrientation.setScalar(1.0f);
+        m_sceneOrientation.setVector(0.0f, 0.0f, 0.0f);
     }
 }
 
 QVector3D QCamera3D::getScenePointToScreen(const QVector3D& point) const
 {
-    QVector4D r = _matrixViewProj * QVector4D(point, 1.0f);
+    QVector4D r = m_matrixViewProj * QVector4D(point, 1.0f);
     return QVector3D(r.x() / r.w(), r.y() / r.w(), r.z() / r.w());
 }
 
 void QCamera3D::getLocalRayFromScreen(QVector3D& resultNear, QVector3D& resultFar, const QVector2D& screenPoint) const
 {
-    QMatrix4x4 m = _matrixProj.inverted();
+    QMatrix4x4 m = m_matrixProj.inverted();
     QVector2D d(2.0f * screenPoint.x() - 1.0f, 1.0f - 2.0f * screenPoint.y());
     resultNear = m * QVector3D(d, -1.0f);
     resultFar = m * QVector3D(d, 1.0f);
@@ -79,15 +79,15 @@ void QCamera3D::getLocalRayFromScreen(QVector3D& resultNear, QVector3D& resultFa
 void QCamera3D::getGlobalRayFromScreen(QVector3D& resultNear, QVector3D& resultFar, const QVector2D& screenPoint) const
 {
     getLocalRayFromScreen(resultNear, resultFar, screenPoint);
-    resultNear = _orientation.rotatedVector(resultNear) + _position;
-    resultFar = _orientation.rotatedVector(resultFar) + _position;
+    resultNear = m_orientation.rotatedVector(resultNear) + m_position;
+    resultFar = m_orientation.rotatedVector(resultFar) + m_position;
 }
 
 void QCamera3D::getRayOnSceneFromScreen(QVector3D& resultNear, QVector3D& resultFar, const QVector2D& screenPoint) const
 {
     getLocalRayFromScreen(resultNear, resultFar, screenPoint);
-    resultNear = _localOrientation.rotatedVector(resultNear) + _localPosition;
-    resultFar = _localOrientation.rotatedVector(resultFar) + _localPosition;
+    resultNear = m_localOrientation.rotatedVector(resultNear) + m_localPosition;
+    resultFar = m_localOrientation.rotatedVector(resultFar) + m_localPosition;
 }
 
 bool QCamera3D::pointFromScreenToScene(QVector3D& result, const QVector2D& screenPoint) const
@@ -95,8 +95,8 @@ bool QCamera3D::pointFromScreenToScene(QVector3D& result, const QVector2D& scree
     float Z;
     QVector3D nearP, farP;
     getLocalRayFromScreen(nearP, farP, screenPoint);
-    if (QOtherMathFunctions::collisionPlaneLine(result, QVector3D(0.0f, 0.0f, 1.0f), 0.0f, _localPosition,
-                                                _localOrientation.rotatedVector(farP - nearP), Z)) {
+    if (QOtherMathFunctions::collisionPlaneRay(result, Z, QVector3D(0.0f, 0.0f, 1.0f), 0.0f, m_localPosition,
+                                                m_localOrientation.rotatedVector(farP - nearP))) {
         if (Z > 0.0f) {
             return true;
         }
@@ -109,7 +109,7 @@ QVector3D QCamera3D::fromCameraToWorld(const QVector2D& screenPoint, float Z) co
     QVector3D resultNear, resultFar;
     getLocalRayFromScreen(resultNear, resultFar, screenPoint);
     float t = (Z - _zNear) / (_zFar - _zNear);
-    return _orientation.rotatedVector(resultNear + (resultFar - resultNear) * t) + _position;
+    return m_orientation.rotatedVector(resultNear + (resultFar - resultNear) * t) + m_position;
 }
 
 }

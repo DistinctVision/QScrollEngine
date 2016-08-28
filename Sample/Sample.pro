@@ -3,7 +3,7 @@ QT += widgets multimedia
 TARGET = Sample
 TEMPLATE = app
 
-include (QScrollEngine.pri)
+include (../QScrollEngine.pri)
 
 SOURCES += main.cpp \
     scene.cpp
@@ -11,7 +11,7 @@ SOURCES += main.cpp \
 HEADERS += \ 
     scene.h
 
-INCLUDEPATH += .
+INCLUDEPATH += ../
 
 RESOURCES += \
     $$PWD/resources.qrc

@@ -19,8 +19,8 @@ namespace QScrollEngine {
 QScrollEngineWidget::QScrollEngineWidget(QWidget* parent) :
     QOpenGLWidget(parent), QScrollEngineContext(nullptr)
 {
-    connect(&_timer, SIGNAL(timeout()), this, SLOT(update()));
-    _timer.setSingleShot(true);
+    connect(&m_timer, SIGNAL(timeout()), this, SLOT(update()));
+    m_timer.setSingleShot(true);
 #if (SUPPORT_TOUCHSCREEN == 1)
     setAttribute(Qt::WA_AcceptTouchEvents);
 #endif
@@ -38,15 +38,6 @@ bool QScrollEngineWidget::event(QEvent *event)
             return QOpenGLWidget::event(event);
         }
 #if (SUPPORT_MOUSE == 1)
-    case QEvent::MouseMove:
-        {
-            QMouseEvent* mouseEvent = static_cast<QMouseEvent*>(event);
-            QTouchEvent::TouchPoint touchPoint;
-            touchPoint.setId(-1);
-            touchPoint.setPos(mouseEvent->pos());
-            emit touchMoved(touchPoint);
-            return true;
-        }
     case QEvent::MouseButtonPress:
         {
             QMouseEvent* mouseEvent = static_cast<QMouseEvent*>(event);
@@ -54,6 +45,15 @@ bool QScrollEngineWidget::event(QEvent *event)
             touchPoint.setId(-1);
             touchPoint.setPos(mouseEvent->pos());
             emit touchPressed(touchPoint);
+            return true;
+        }
+    case QEvent::MouseMove:
+        {
+            QMouseEvent* mouseEvent = static_cast<QMouseEvent*>(event);
+            QTouchEvent::TouchPoint touchPoint;
+            touchPoint.setId(-1);
+            touchPoint.setPos(mouseEvent->pos());
+            emit touchMoved(touchPoint);
             return true;
         }
     case QEvent::MouseButtonRelease:
@@ -128,7 +128,7 @@ bool QScrollEngineWidget::event(QEvent *event)
 void QScrollEngineWidget::initializeGL()
 {
     setOpenGLContext(context());
-    _timer.start(30);
+    m_timer.start(30);
 }
 
 void QScrollEngineWidget::resizeGL(int width, int height)
@@ -143,7 +143,7 @@ void QScrollEngineWidget::paintGL()
     emit prevDraw();
     paintContext();
     emit afterDraw();
-    _timer.start(10);
+    m_timer.start(10);
 }
 
 }

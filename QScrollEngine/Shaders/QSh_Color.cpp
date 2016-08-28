@@ -3,14 +3,13 @@
 
 namespace QScrollEngine {
 
-int QSh_Color::locationMatrixWVP;
-int QSh_Color::locationColor;
+QSh_Color::UniformLocation QSh_Color::m_locations;
 
-bool QSh_Color::use(QScrollEngineContext* , QOpenGLShaderProgram* program)
+bool QSh_Color::use(QScrollEngineContext* , QOpenGLShaderProgram* program, const QDrawObject3D* drawObject)
 {
-    QSH_ASSERT(_sceneObject != nullptr);
-    program->setUniformValue(locationMatrixWVP, _sceneObject->matrixWorldViewProj());
-    program->setUniformValue(locationColor, _color);
+    const QSceneObject3D* sceneObject = drawObject->sceneObject();
+    QSH_ASSERT(sceneObject != nullptr);
+    m_locations.bindParameters(program, this, sceneObject);
     return true;
 }
 
@@ -20,12 +19,21 @@ void QSh_Color::load(QScrollEngineContext* context, std::vector<QSharedPointer<Q
     shaders[0] = QSharedPointer<QOpenGLShaderProgram>(new QOpenGLShaderProgram);
     if (!context->loadShader(shaders[0].data(), "Color", "Color"))
         return;
-    shaders[0]->bindAttributeLocation("vertex_position", 0);
-    shaders[0]->bindAttributeLocation("vertex_texcoord", 1);
-    if (!context->checkBindShader(shaders[0].data(), "Color"))
-        return;
-    QSh_Color::locationMatrixWVP = shaders[0]->uniformLocation("matrix_wvp");
-    QSh_Color::locationColor = shaders[0]->uniformLocation("color");
+    m_locations.loadLocations(shaders[0].data());
+}
+
+void QSh_Color::UniformLocation::bindParameters(QOpenGLShaderProgram* program,
+                                                const QSh_Color* shader,
+                                                const QSceneObject3D* sceneObject) const
+{
+    program->setUniformValue(matrixWVP, sceneObject->matrixWorldViewProj());
+    program->setUniformValue(color, shader->color());
+}
+
+void QSh_Color::UniformLocation::loadLocations(QOpenGLShaderProgram* shader)
+{
+    matrixWVP = shader->uniformLocation("matrix_wvp");
+    color = shader->uniformLocation("color");
 }
 
 }

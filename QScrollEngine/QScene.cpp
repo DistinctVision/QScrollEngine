@@ -13,52 +13,59 @@
 
 namespace QScrollEngine {
 
+QScene::QScene():QScene(nullptr, 0) {}
+
 QScene::QScene(QScrollEngineContext* parentContext, int order)
 {
     scale.setX(1.0f); scale.setY(1.0f); scale.setZ(1.0f);
-    _currentResetedSprite = _currentResetedEntity = 0;
-    _order = order;
-    _boundingBox.toPoint(0.0f, 0.0f, 0.0f);
-    _boundingBox.expand(10000.0f);
-    _parentContext = parentContext;
-    if (_parentContext) {
-        _quad = _parentContext->_quad;
-        _parentContext->_addScene(this);
+    m_enabled = true;
+    m_order = order;
+    m_boundingBox.toPoint(0.0f, 0.0f, 0.0f);
+    m_boundingBox.expand(10000.0f);
+    m_parentContext = parentContext;
+    if (m_parentContext) {
+        m_quad = m_parentContext->m_quad;
+        m_parentContext->_addScene(this);
     } else {
-        _quad = NULL;
-        _index = 0;
+        m_quad = NULL;
+        m_index = 0;
     }
-    _ambientColor.setRgb(0, 0, 0, 255);
+    m_ambientColor.setRgb(0, 0, 0, 255);
 }
 
 QScene::~QScene()
 {
-    while (!_lights.empty())
-        delete _lights.at(_lights.size() - 1);
-    while (!_sprites.empty())
-        delete _sprites.at(_sprites.size() - 1);
-    while (!_entities.empty())
-        delete _entities.at(_entities.size() - 1);
-    if (_parentContext)
-        _parentContext->_deleteScene(this);
     emit deleting();
+    clearScene();
+    if (m_parentContext != nullptr)
+        m_parentContext->_deleteScene(this);
+}
+
+void QScene::clearScene()
+{
+    while (!m_lights.empty())
+        delete m_lights.at(m_lights.size() - 1);
+    while (!m_sprites.empty())
+        delete m_sprites.at(m_sprites.size() - 1);
+    while (!m_entities.empty())
+        delete m_entities.at(m_entities.size() - 1);
 }
 
 QEntity* QScene::findEntity(const QString& name) const
 {
-    for (unsigned int i=0; i<_entities.size(); ++i) {
-        if (_entities[i]->name() == name)
-            return _entities[i];
+    for (unsigned int i=0; i<m_entities.size(); ++i) {
+        if (m_entities[i]->name() == name)
+            return m_entities[i];
     }
     return nullptr;
 }
 
 QEntity* QScene::findEntityWithChilds(const QString& name) const
 {
-    for (unsigned int i=0; i<_entities.size(); ++i) {
-        if (_entities[i]->name() == name)
-            return _entities[i];
-        QEntity* child = _entities[i]->findChild(name);
+    for (unsigned int i=0; i<m_entities.size(); ++i) {
+        if (m_entities[i]->name() == name)
+            return m_entities[i];
+        QEntity* child = m_entities[i]->findChild(name);
         if (child)
             return child;
     }
@@ -67,105 +74,108 @@ QEntity* QScene::findEntityWithChilds(const QString& name) const
 
 void QScene::setParentContext(QScrollEngineContext* parentContext)
 {
-    if (_parentContext)
-        _parentContext->_deleteScene(this);
-    _parentContext = parentContext;
-    if (_parentContext) {
-        _quad = _parentContext->_quad;
-        _parentContext->_addScene(this);
+    if (m_parentContext == parentContext)
+        return;
+    if (m_parentContext)
+        m_parentContext->_deleteScene(this);
+    m_parentContext = parentContext;
+    if (m_parentContext) {
+        m_quad = m_parentContext->m_quad;
+        m_parentContext->_addScene(this);
     } else {
-        _quad = nullptr;
+        m_quad = nullptr;
     }
+    emit parentContextChanged();
 }
 
 void QScene::setOrder(int order)
 {
-    _order = order;
-    if (_parentContext) {
-        _parentContext->_deleteScene(this);
-        _parentContext->_addScene(this);
+    m_order = order;
+    if (m_parentContext) {
+        m_parentContext->_deleteScene(this);
+        m_parentContext->_addScene(this);
     }
 }
 
 void QScene::_addSprite(QSprite* sprite)
 {
-    sprite->_index = _sprites.size();
-    _sprites.push_back(sprite);
+    sprite->m_index = m_sprites.size();
+    m_sprites.push_back(sprite);
 }
 
 void QScene::_deleteSprite(QSprite* sprite)
 {
-    _sprites[sprite->_index] = _sprites[_sprites.size()-1];
-    _sprites[sprite->_index]->_index = sprite->_index;
-    _sprites.pop_back();
+    m_sprites[sprite->m_index] = m_sprites[m_sprites.size()-1];
+    m_sprites[sprite->m_index]->m_index = sprite->m_index;
+    m_sprites.pop_back();
 }
 
 void QScene::_addEntity(QEntity* entity)
 {
-    entity->_index = _entities.size();
-    _entities.push_back(entity);
+    entity->m_index = m_entities.size();
+    m_entities.push_back(entity);
 }
 
 void QScene::_deleteEntity(QEntity* entity)
 {
-    _entities[entity->_index] = _entities[_entities.size()-1];
-    _entities[entity->_index]->_index = entity->_index;
-    _entities.pop_back();
+    m_entities[entity->m_index] = m_entities[m_entities.size()-1];
+    m_entities[entity->m_index]->m_index = entity->m_index;
+    m_entities.pop_back();
 }
 
 void QScene::_addLight(QLight* light)
 {
-    light->_index = _lights.size();
-    _lights.push_back(light);
+    light->m_index = m_lights.size();
+    m_lights.push_back(light);
 }
 
 void QScene::_deleteLight(QLight* light)
 {
-    _lights[light->_index] = _lights[_lights.size()-1];
-    _lights[light->_index]->_index = light->_index;
-    _lights.pop_back();
+    m_lights[light->m_index] = m_lights[m_lights.size()-1];
+    m_lights[light->m_index]->m_index = light->m_index;
+    m_lights.pop_back();
 }
 
 void QScene::solveBoundingBox(float expand)
 {
-    if (_sprites.empty()) {
-        if (_entities.empty()) {
-            if (_lights.empty()) {
-                _boundingBox.toPoint(0.0f, 0.0f, 0.0f);
-                _boundingBox.expand(expand);
+    if (m_sprites.empty()) {
+        if (m_entities.empty()) {
+            if (m_lights.empty()) {
+                m_boundingBox.toPoint(0.0f, 0.0f, 0.0f);
+                m_boundingBox.expand(expand);
                 return;
             } else {
-                _lights[0]->updateTransform();
-                _boundingBox = _lights[0]->boundingBox();
+                m_lights[0]->updateTransform();
+                m_boundingBox = m_lights[0]->boundingBox();
             }
         } else {
-            _entities[0]->updateTransform();
-            _boundingBox = _entities[0]->boundingBox();
-            _boundingBox.expand(expand);
+            m_entities[0]->updateTransform();
+            m_boundingBox = m_entities[0]->boundingBox();
+            m_boundingBox.expand(expand);
         }
     } else {
-        _boundingBox.toPoint(_sprites[0]->position());
-        _boundingBox.expand(_sprites[0]->_scale);
+        m_boundingBox.toPoint(m_sprites[0]->position());
+        m_boundingBox.expand(m_sprites[0]->m_scale);
     }
-    for (std::vector<QLight*>::iterator it = _lights.begin(); it != _lights.end(); ++it) {
+    for (std::vector<QLight*>::iterator it = m_lights.begin(); it != m_lights.end(); ++it) {
         (*it)->updateTransform();
-        _boundingBox.merge((*it)->boundingBox());
+        m_boundingBox.merge((*it)->boundingBox());
     }
     QBoundingBox temp;
     QSprite* sprite;
-    for (std::vector<QSprite*>::iterator it = _sprites.begin(); it != _sprites.end(); ++it) {
+    for (std::vector<QSprite*>::iterator it = m_sprites.begin(); it != m_sprites.end(); ++it) {
         sprite = *it;
         temp.toPoint(sprite->position());
-        temp.expand(sprite->_scale);
-        _boundingBox.merge(temp);
+        temp.expand(sprite->m_scale);
+        m_boundingBox.merge(temp);
     }
     QEntity* entity;
-    for (std::vector<QEntity*>::iterator it = _entities.begin(); it != _entities.end(); ++it) {
+    for (std::vector<QEntity*>::iterator it = m_entities.begin(); it != m_entities.end(); ++it) {
         entity = *it;
         entity->updateTransform();
-        _boundingBox.merge(entity->boundingBox());
+        m_boundingBox.merge(entity->boundingBox());
     }
-    _boundingBox.expand(expand);
+    m_boundingBox.expand(expand);
 }
 
 void QScene::updateCameraInfo(QCamera3D* camera)
@@ -174,32 +184,33 @@ void QScene::updateCameraInfo(QCamera3D* camera)
     camera->setSceneOrientation(orientation);
     camera->setSceneScale(scale);
     camera->update();
-    _cameraInfo.position = camera->localPosition();
-    _cameraInfo.orientation = camera->localOrientation();
+    m_cameraInfo.position = camera->localPosition();
+    m_cameraInfo.orientation = camera->localOrientation();
 #if defined(__ANDROID__)
-    QQuaternion invOrientation = _cameraInfo.orientation;
+    QQuaternion invOrientation = m_cameraInfo.orientation;
 #else
-    QQuaternion invOrientation = _cameraInfo.orientation;
+    QQuaternion invOrientation = m_cameraInfo.orientation;
 #endif
-    _cameraInfo.localX = invOrientation.rotatedVector(QVector3D(1.0f, 0.0f, 0.0f));
-    _cameraInfo.localY = invOrientation.rotatedVector(QVector3D(0.0f, 1.0f, 0.0f));
-    _cameraInfo.localZ = invOrientation.rotatedVector(QVector3D(0.0f, 0.0f, 1.0f));
+    m_cameraInfo.localX = invOrientation.rotatedVector(QVector3D(1.0f, 0.0f, 0.0f));
+    m_cameraInfo.localY = invOrientation.rotatedVector(QVector3D(0.0f, 1.0f, 0.0f));
+    m_cameraInfo.localZ = invOrientation.rotatedVector(QVector3D(0.0f, 0.0f, 1.0f));
 }
 
 void QScene::_updateGlobalPosition(QSprite* sprite){
-    if (sprite->_transformHasChanged) {
-        sprite->_globalPosition = sprite->_position;
-        sprite->_transformHasChanged = false;
+    if (sprite->m_transformHasChanged) {
+        sprite->m_globalPosition = sprite->m_position;
+        sprite->m_transformHasChanged = false;
     }
 }
 
 void QScene::_spriteToDrawing(QSprite* sprite, const QCamera3D* camera)
 {
-    if (!sprite->visible())
+    emit sprite->onSceneUpdate();
+    if (!sprite->visibled())
         return;
-    float sina = sinf(sprite->_angle);
-    float cosa = cosf(sprite->_angle);
-    QVector2D diagonal = sprite->_scale * 0.5, d, dr;
+    float sina = sinf(sprite->m_angle);
+    float cosa = cosf(sprite->m_angle);
+    QVector2D diagonal = sprite->m_scale * 0.5, d, dr;
     diagonal.setX(fabsf(diagonal.x()));
     diagonal.setY(fabsf(diagonal.y()));
     d.setX(qAbs(diagonal.x() * cosa - diagonal.y() * sina));
@@ -210,30 +221,30 @@ void QScene::_spriteToDrawing(QSprite* sprite, const QCamera3D* camera)
         d.setX(dr.x());
     if (dr.y() > d.y())
         d.setY(dr.y());
-    QVector3D center = _cameraInfo.localX * d.x() + _cameraInfo.localY * d.y();
-    sprite->_centerOfBoundingBox = sprite->_globalPosition;
-    sprite->_boundingBox.toPoint(sprite->_centerOfBoundingBox);
-    sprite->_boundingBox.expand(center);
-    if (!camera->frustum.boxInFrustum(sprite->_centerOfBoundingBox, center)) {
-        sprite->_visibledForCamera = false;
+    QVector3D center = m_cameraInfo.localX * d.x() + m_cameraInfo.localY * d.y();
+    sprite->m_centerOfBoundingBox = sprite->m_globalPosition;
+    sprite->m_boundingBox.toPoint(sprite->m_centerOfBoundingBox);
+    sprite->m_boundingBox.expand(center);
+    if (!camera->frustum.boxInFrustum(sprite->m_centerOfBoundingBox, center)) {
+        sprite->m_visibledForCamera = false;
         return;
     }
-    sprite->_visibledForCamera = true;
-    QQuaternion globalOrientation = _cameraInfo.orientation * QQuaternion::fromAxisAndAngle(0.0f, 0.0f, 1.0f, sprite->_angle);
+    sprite->m_visibledForCamera = true;
+    QQuaternion globalOrientation = m_cameraInfo.orientation * QQuaternion::fromAxisAndAngle(0.0f, 0.0f, 1.0f, sprite->m_angle);
     globalOrientation.normalize();
     sprite->_updateMatrixWorld(globalOrientation);
     sprite->updateMatrxWorldViewProj(camera->matrixViewProj());
     if (sprite->isAlpha()) {
         QScrollEngineContext::TempAlphaObject temp;
         temp.drawObject = sprite;
-        temp.zDistance = QVector3D::dotProduct(_cameraInfo.position - sprite->_centerOfBoundingBox, _cameraInfo.localZ);
-        _parentContext->_addTempAlphaObject(temp);
+        temp.zDistance = QVector3D::dotProduct(m_cameraInfo.position - sprite->m_centerOfBoundingBox, m_cameraInfo.localZ);
+        m_parentContext->_addTempAlphaObject(temp);
     } else {
-        QSh* shaderOfObject = sprite->shader();
+        QSh* shaderOfObject = sprite->shader().data();
         if (shaderOfObject) {
-            shaderOfObject->preprocess();
-            QScrollEngineContext::_Drawing& drawing = _parentContext->_drawings[shaderOfObject->currentIndexType()];
-            drawing.currentObjects[shaderOfObject->subIndexType()].sprites.push_back(sprite);
+            shaderOfObject->preprocess(sprite);
+            QScrollEngineContext::_Drawing& drawing = m_parentContext->m_drawings[shaderOfObject->currentTypeIndex()];
+            drawing.currentObjects[shaderOfObject->subTypeIndex()].sprites.push_back(sprite);
         }
     }
 }
@@ -247,21 +258,21 @@ void QScene::_entityToDrawing(QEntity* entity, const QCamera3D* camera)
 
 void QScene::_update()
 {
-    QCamera3D* camera = _parentContext->camera;
+    QCamera3D* camera = m_parentContext->camera;
     updateCameraInfo(camera);
-    if (!camera->frustum.boundingBoxInFrustum(_boundingBox)) {
+    if (!camera->frustum.boundingBoxInFrustum(m_boundingBox)) {
         return;
     }
-    unsigned int i;
-    for (i=0; i<_lights.size(); ++i) {
-        _lights[i]->updateTransform();
+    for (auto it = m_lights.begin(); it != m_lights.end(); ++it) {
+        emit (*it)->onSceneUpdate();
+        (*it)->updateTransform();
     }
-    for (i=0; i<_sprites.size(); ++i) {
-        _updateGlobalPosition(_sprites[i]);
-        _spriteToDrawing(_sprites[i], camera);
+    for (auto it = m_sprites.begin(); it != m_sprites.end(); ++it) {
+        _updateGlobalPosition(*it);
+        _spriteToDrawing(*it, camera);
     }
-    for (i=0; i<_entities.size(); ++i) {
-        _entityToDrawing(_entities[i], camera);
+    for (auto it = m_entities.begin(); it != m_entities.end(); ++it) {
+        _entityToDrawing(*it, camera);
     }
 }
 

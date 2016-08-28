@@ -15,6 +15,7 @@
 #include "QScrollEngine/QFrustum.h"
 #include "QScrollEngine/QGLPrimitiv.h"
 #include "QScrollEngine/QMesh.h"
+#include "QScrollEngine/QSkinnedMesh.h"
 #include "QScrollEngine/QOtherMathFunctions.h"
 #include "QScrollEngine/QScene.h"
 #include "QScrollEngine/Shaders/QSh_All.h"
@@ -25,7 +26,7 @@
 #include "QScrollEngine/QDrawObject3D.h"
 #include "QScrollEngine/QSceneObject3D.h"
 #include "QScrollEngine/QAnimation3D.h"
-#include "QScrollEngine/Tools/PlanarShadows.h"
+#include "QScrollEngine/Tools/QPlanarShadows.h"
 #include "QScrollEngine/Tools/QIsoSurface.h"
 #include "QScrollEngine/QScrollEngineWidget.h"
 

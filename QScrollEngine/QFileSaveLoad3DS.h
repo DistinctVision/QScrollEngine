@@ -68,10 +68,10 @@ private:
         QFileData data;
     } ChunkData;
 
-    std::vector<TextureInfo> _textureInfo;
-    bool _saveTexture;
-    int _currentIdTexture;
-    int _currentIdShader;
+    std::vector<TextureInfo> m_textureInfo;
+    bool m_saveTexture;
+    int m_currentIdTexture;
+    int m_currentIdShader;
 
     int _findTexture(const QString& name);
     int _findTexture(QOpenGLTexture* texture);

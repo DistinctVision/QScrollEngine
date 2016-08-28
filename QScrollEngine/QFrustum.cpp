@@ -13,16 +13,16 @@ void QFrustum::normalizePlane(int side)
     // Вычисляем величину нормали плоскости (точку A B C)
     // Помните, что (A, B, C) плоскости - то же самое, что (X, Y, Z) для нормали.
     // Чтобы вычислить величину, используем формулу: sqrt(x^2 + y^2 + z^2)
-    float magnitude = (float)sqrtf(_frustum[side][A] * _frustum[side][A] +
-                                  _frustum[side][B] * _frustum[side][B] +
-                                  _frustum[side][C] * _frustum[side][C] );
+    float magnitude = (float)sqrtf(m_frustum[side][A] * m_frustum[side][A] +
+                                  m_frustum[side][B] * m_frustum[side][B] +
+                                  m_frustum[side][C] * m_frustum[side][C] );
 
     // Затем делим значения плоскости на её величину.
     // После этого с плоскостью будет легче работать.
-    _frustum[side][A] /= magnitude;
-    _frustum[side][B] /= magnitude;
-    _frustum[side][C] /= magnitude;
-    _frustum[side][D] /= magnitude;
+    m_frustum[side][A] /= magnitude;
+    m_frustum[side][B] /= magnitude;
+    m_frustum[side][C] /= magnitude;
+    m_frustum[side][D] /= magnitude;
 }
 
 void QFrustum::calculate(const QMatrix4x4& matrix)
@@ -32,10 +32,10 @@ void QFrustum::calculate(const QMatrix4x4& matrix)
     // возьмём обрезающие плоскости, полученные из matrix (матрица проекции умноженная на мировую), и из них получим стороны.
 
     // получаем ПРАВУЮ сторону frustum'а
-    _frustum[RIGHT][A] = matrix(3, 0) - matrix(0, 0);
-    _frustum[RIGHT][B] = matrix(3, 1) - matrix(0, 1);
-    _frustum[RIGHT][C] = matrix(3, 2) - matrix(0, 2);
-    _frustum[RIGHT][D] = matrix(3, 3) - matrix(0, 3);
+    m_frustum[RIGHT][A] = matrix(3, 0) - matrix(0, 0);
+    m_frustum[RIGHT][B] = matrix(3, 1) - matrix(0, 1);
+    m_frustum[RIGHT][C] = matrix(3, 2) - matrix(0, 2);
+    m_frustum[RIGHT][D] = matrix(3, 3) - matrix(0, 3);
 
     // Теперь, имея нормаль (A,B,C) и расстояние (D) к плоскости,
     // нам нужно нормализовать нормаль и дистанцию
@@ -44,38 +44,38 @@ void QFrustum::calculate(const QMatrix4x4& matrix)
     normalizePlane(RIGHT);
 
     // получаем ЛЕВУЮ сторону frustum'а
-    _frustum[LEFT][A] = matrix(3, 0) + matrix(0, 0);
-    _frustum[LEFT][B] = matrix(3, 1) + matrix(0, 1);
-    _frustum[LEFT][C] = matrix(3, 2) + matrix(0, 2);
-    _frustum[LEFT][D] = matrix(3, 3) + matrix(0, 3);
+    m_frustum[LEFT][A] = matrix(3, 0) + matrix(0, 0);
+    m_frustum[LEFT][B] = matrix(3, 1) + matrix(0, 1);
+    m_frustum[LEFT][C] = matrix(3, 2) + matrix(0, 2);
+    m_frustum[LEFT][D] = matrix(3, 3) + matrix(0, 3);
     normalizePlane(LEFT);
 
     // получаем нижнюю сторону frustum'а
-    _frustum[BOTTOM][A] = matrix(3, 0) - matrix(1, 0);
-    _frustum[BOTTOM][B] = matrix(3, 1) - matrix(1, 1);
-    _frustum[BOTTOM][C] = matrix(3, 2) - matrix(1, 2);
-    _frustum[BOTTOM][D] = matrix(3, 3) - matrix(1, 3);
+    m_frustum[BOTTOM][A] = matrix(3, 0) - matrix(1, 0);
+    m_frustum[BOTTOM][B] = matrix(3, 1) - matrix(1, 1);
+    m_frustum[BOTTOM][C] = matrix(3, 2) - matrix(1, 2);
+    m_frustum[BOTTOM][D] = matrix(3, 3) - matrix(1, 3);
     normalizePlane(BOTTOM);
 
     // получаем верхнюю сторону frustum'а
-    _frustum[TOP][A] = matrix(3, 0) + matrix(1, 0);
-    _frustum[TOP][B] = matrix(3, 1) + matrix(1, 1);
-    _frustum[TOP][C] = matrix(3, 2) + matrix(1, 2);
-    _frustum[TOP][D] = matrix(3, 3) + matrix(1, 3);
+    m_frustum[TOP][A] = matrix(3, 0) + matrix(1, 0);
+    m_frustum[TOP][B] = matrix(3, 1) + matrix(1, 1);
+    m_frustum[TOP][C] = matrix(3, 2) + matrix(1, 2);
+    m_frustum[TOP][D] = matrix(3, 3) + matrix(1, 3);
     normalizePlane(TOP);
 
     // получаем заднюю сторону frustum'а
-    _frustum[BACK][A] = matrix(3, 0) - matrix(2, 0);
-    _frustum[BACK][B] = matrix(3, 1) - matrix(2, 1);
-    _frustum[BACK][C] = matrix(3, 2) - matrix(2, 2);
-    _frustum[BACK][D] = matrix(3, 3) - matrix(2, 3);
+    m_frustum[BACK][A] = matrix(3, 0) - matrix(2, 0);
+    m_frustum[BACK][B] = matrix(3, 1) - matrix(2, 1);
+    m_frustum[BACK][C] = matrix(3, 2) - matrix(2, 2);
+    m_frustum[BACK][D] = matrix(3, 3) - matrix(2, 3);
     normalizePlane(BACK);
 
     // получаем переднюю сторону frustum'а
-    _frustum[FRONT][A] = matrix(3, 0) + matrix(2, 0);
-    _frustum[FRONT][B] = matrix(3, 1) + matrix(2, 1);
-    _frustum[FRONT][C] = matrix(3, 2) + matrix(2, 2);
-    _frustum[FRONT][D] = matrix(3, 3) + matrix(2, 3);
+    m_frustum[FRONT][A] = matrix(3, 0) + matrix(2, 0);
+    m_frustum[FRONT][B] = matrix(3, 1) + matrix(2, 1);
+    m_frustum[FRONT][C] = matrix(3, 2) + matrix(2, 2);
+    m_frustum[FRONT][D] = matrix(3, 3) + matrix(2, 3);
     normalizePlane(FRONT);
 }
 
@@ -93,7 +93,7 @@ bool QFrustum::pointInFrustum(const QVector3D& point) const
     {
         // Применяем формулу плоскости и проверяем, находится ли точка позади плоскости.
         // Если она позади хотя бы одной плоскости из всех, можно возвращать false.
-        if(_frustum[i][A] * point.x() + _frustum[i][B] * point.y() + _frustum[i][C] * point.z() + _frustum[i][D] <= 0.0f)
+        if(m_frustum[i][A] * point.x() + m_frustum[i][B] * point.y() + m_frustum[i][C] * point.z() + m_frustum[i][D] <= 0.0f)
         {
             // Точка находится позади стороны, так что она НЕ внутри пирамиды
             return false;
@@ -115,8 +115,8 @@ bool QFrustum::sphereInFrustum(const QVector3D& position, float radius) const
     for(int i = 0; i < 6; i++ )
     {
         // Если центр сферы дальше от плоскости, чем её радиус
-        if(_frustum[i][A] * position.x() + _frustum[i][B] * position.y() + _frustum[i][C] * position.z() +
-                _frustum[i][D] <= -radius)
+        if(m_frustum[i][A] * position.x() + m_frustum[i][B] * position.y() + m_frustum[i][C] * position.z() +
+                m_frustum[i][D] <= -radius)
         {
             // То и вся сфера снаружи, возвращаем false
             return false;
@@ -136,29 +136,29 @@ bool QFrustum::boxInFrustum(const QVector3D& position, const QVector3D& halSize)
 
     for(int i = 0; i < 6; i++ )
     {
-        if (_frustum[i][A] * (position.x() - halSize.x()) + _frustum[i][B] * (position.y() - halSize.y()) +
-            _frustum[i][C] * (position.z() - halSize.z()) + _frustum[i][D] > 0.0f)
+        if (m_frustum[i][A] * (position.x() - halSize.x()) + m_frustum[i][B] * (position.y() - halSize.y()) +
+            m_frustum[i][C] * (position.z() - halSize.z()) + m_frustum[i][D] > 0.0f)
            continue;
-        if (_frustum[i][A] * (position.x() + halSize.x()) + _frustum[i][B] * (position.y() - halSize.y()) +
-            _frustum[i][C] * (position.z() - halSize.z()) + _frustum[i][D] > 0.0f)
+        if (m_frustum[i][A] * (position.x() + halSize.x()) + m_frustum[i][B] * (position.y() - halSize.y()) +
+            m_frustum[i][C] * (position.z() - halSize.z()) + m_frustum[i][D] > 0.0f)
            continue;
-        if (_frustum[i][A] * (position.x() - halSize.x()) + _frustum[i][B] * (position.y() + halSize.y()) +
-            _frustum[i][C] * (position.z() - halSize.z()) + _frustum[i][D] > 0.0f)
+        if (m_frustum[i][A] * (position.x() - halSize.x()) + m_frustum[i][B] * (position.y() + halSize.y()) +
+            m_frustum[i][C] * (position.z() - halSize.z()) + m_frustum[i][D] > 0.0f)
            continue;
-        if (_frustum[i][A] * (position.x() + halSize.x()) + _frustum[i][B] * (position.y() + halSize.y()) +
-            _frustum[i][C] * (position.z() - halSize.z()) + _frustum[i][D] > 0.0f)
+        if (m_frustum[i][A] * (position.x() + halSize.x()) + m_frustum[i][B] * (position.y() + halSize.y()) +
+            m_frustum[i][C] * (position.z() - halSize.z()) + m_frustum[i][D] > 0.0f)
            continue;
-        if (_frustum[i][A] * (position.x() - halSize.x()) + _frustum[i][B] * (position.y() - halSize.y()) +
-            _frustum[i][C] * (position.z() + halSize.z()) + _frustum[i][D] > 0.0f)
+        if (m_frustum[i][A] * (position.x() - halSize.x()) + m_frustum[i][B] * (position.y() - halSize.y()) +
+            m_frustum[i][C] * (position.z() + halSize.z()) + m_frustum[i][D] > 0.0f)
            continue;
-        if (_frustum[i][A] * (position.x() + halSize.x()) + _frustum[i][B] * (position.y() - halSize.y()) +
-            _frustum[i][C] * (position.z() + halSize.z()) + _frustum[i][D] > 0.0f)
+        if (m_frustum[i][A] * (position.x() + halSize.x()) + m_frustum[i][B] * (position.y() - halSize.y()) +
+            m_frustum[i][C] * (position.z() + halSize.z()) + m_frustum[i][D] > 0.0f)
            continue;
-        if (_frustum[i][A] * (position.x() - halSize.x()) + _frustum[i][B] * (position.y() + halSize.y()) +
-            _frustum[i][C] * (position.z() + halSize.z()) + _frustum[i][D] > 0.0f)
+        if (m_frustum[i][A] * (position.x() - halSize.x()) + m_frustum[i][B] * (position.y() + halSize.y()) +
+            m_frustum[i][C] * (position.z() + halSize.z()) + m_frustum[i][D] > 0.0f)
            continue;
-        if (_frustum[i][A] * (position.x() + halSize.x()) + _frustum[i][B] * (position.y() + halSize.y()) +
-            _frustum[i][C] * (position.z() + halSize.z()) + _frustum[i][D] > 0.0f)
+        if (m_frustum[i][A] * (position.x() + halSize.x()) + m_frustum[i][B] * (position.y() + halSize.y()) +
+            m_frustum[i][C] * (position.z() + halSize.z()) + m_frustum[i][D] > 0.0f)
            continue;
 
         // Если мы дошли досюда, куб не внутри пирамиды.

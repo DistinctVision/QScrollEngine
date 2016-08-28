@@ -5,7 +5,7 @@ precision mediump float;
 #endif
 
 uniform vec4 color;
-uniform sampler2D texture0;
+uniform sampler2D texture;
 uniform vec3 viewPosition;
 uniform vec3 sphereCenter;
 uniform float sphereRadiusSquared;
@@ -31,5 +31,5 @@ void main()
     localSpherePoint = sphereMatrixRotation * localSpherePoint;
     vec2 uv = vec2(atan(localSpherePoint.y, localSpherePoint.x) / M_2_PI + 0.5,
                    0.5 - atan(localSpherePoint.z, length(localSpherePoint.xy)) / M_PI);
-    gl_FragColor = color * texture2D(texture0, uv);
+    gl_FragColor = color * texture2D(texture, uv);
 }

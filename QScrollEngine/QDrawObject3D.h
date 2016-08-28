@@ -14,43 +14,44 @@ class QSceneObject3D;
 
 class QDrawObject3D
 {
-    friend class QScrollEngineContext;
-    friend class QScene;
-
 public:
     QDrawObject3D()
     {
-        _drawMode = GL_TRIANGLES;
-        _parentSceneObject = nullptr;
-        _visibledForCamera = false;
-        _visible = true;
+        m_drawMode = GL_TRIANGLES;
+        m_sceneObject = nullptr;
+        m_visibledForCamera = false;
+        m_visibled = true;
     }
     QDrawObject3D(QSceneObject3D* sceneObject)
     {
-        _drawMode = GL_TRIANGLES;
-        _parentSceneObject = sceneObject;
-        _visibledForCamera = false;
-        _visible = true;
+        m_drawMode = GL_TRIANGLES;
+        m_sceneObject = sceneObject;
+        m_visibledForCamera = false;
+        m_visibled = true;
     }
-    QSceneObject3D* parentSceneObject() const { return _parentSceneObject; }
-    bool visibleForCamera() const { return _visibledForCamera; }
-    QBoundingBox boundingBox() const { return _boundingBox; }
-    QVector3D centerOfBoundingBox() const { return _centerOfBoundingBox; }
-    inline GLenum drawMode() const { return _drawMode; }
-    void setDrawMode(GLenum mode) { _drawMode = mode; }
-    inline bool visible() const { return _visible; }
-    void setVisible(bool visible) { _visible = visible; }
+    QSceneObject3D* sceneObject() { return m_sceneObject; }
+    const QSceneObject3D* sceneObject() const { return m_sceneObject; }
+    bool visibleForCamera() const { return m_visibledForCamera; }
+    QBoundingBox boundingBox() const { return m_boundingBox; }
+    QVector3D centerOfBoundingBox() const { return m_centerOfBoundingBox; }
+    inline GLenum drawMode() const { return m_drawMode; }
+    void setDrawMode(GLenum mode) { m_drawMode = mode; }
+    inline bool visibled() const { return m_visibled; }
+    void setVisibled(bool visibled) { m_visibled = visibled; }
 
     virtual void draw(QScrollEngineContext* context) = 0;
     virtual ~QDrawObject3D() {}
 
 protected:
-    QSceneObject3D* _parentSceneObject;
-    bool _visibledForCamera;
-    QBoundingBox _boundingBox;
-    QVector3D _centerOfBoundingBox;
-    GLenum _drawMode;
-    bool _visible;
+    friend class QScrollEngineContext;
+    friend class QScene;
+
+    QSceneObject3D* m_sceneObject;
+    bool m_visibledForCamera;
+    QBoundingBox m_boundingBox;
+    QVector3D m_centerOfBoundingBox;
+    GLenum m_drawMode;
+    bool m_visibled;
 };
 
 }

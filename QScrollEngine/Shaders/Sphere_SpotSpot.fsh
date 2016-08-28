@@ -21,7 +21,7 @@ uniform float diffuseIntensity;
 uniform float specularIntensity;
 uniform float specularPower;
 uniform vec4 color;
-uniform sampler2D texture0;
+uniform sampler2D texture;
 uniform vec3 viewPosition;
 uniform vec3 sphereCenter;
 uniform float sphereRadiusSquared;
@@ -47,7 +47,7 @@ void main()
     vec3 localSpherePointTransformed = sphereMatrixRotation * localSpherePoint;
     vec2 uv = vec2(atan(localSpherePointTransformed.y, localSpherePointTransformed.x) / M_2_PI + 0.5,
                    0.5 - atan(localSpherePointTransformed.z, length(localSpherePointTransformed.xy)) / M_PI);
-    vec4 diffuseColor = color * texture2D(texture0, uv);
+    vec4 diffuseColor = color * texture2D(texture, uv);
     vec3 normal = normalize(localSpherePoint);
     vec3 resultLight = ambientColor.rgb;
     vec3 globalSpherePoint = localSpherePoint + sphereCenter;

@@ -1,6 +1,8 @@
 #ifndef QSHOBJECT3D_H
 #define QSHOBJECT3D_H
 
+#include <QSharedPointer>
+
 #include "QScrollEngine/Shaders/QSh.h"
 #include "QScrollEngine/Shaders/QSh_Color.h"
 
@@ -12,26 +14,33 @@ class QDrawObject3D;
 
 class QShObject3D
 {
+public:
+    QShObject3D()
+    {
+        m_isAlpha = false;
+        m_shader.reset(new QSh_Color());
+    }
+    QShObject3D(QShPtr shader)
+    {
+        m_isAlpha = false;
+        m_shader = shader;
+    }
+
+    bool isAlpha() const { return m_isAlpha; }
+    void setAlpha(bool enable) { m_isAlpha = enable; }
+
+    void setShader(QShPtr shader)
+    {
+        m_shader = shader;
+    }
+    QShPtr shader() const { return m_shader; }
+
+protected:
     friend class QScrollEngineContext;
     friend class QScene;
 
-public:
-    QShObject3D(QDrawObject3D* object)
-    {
-        _isAlpha = false;
-        _shader = new QSh_Color();
-        _shader->setObject(object);
-    }
-    virtual ~QShObject3D() { delete _shader; }
-
-    bool isAlpha() const { return _isAlpha; }
-    void setAlpha(bool enable) { _isAlpha = enable; }
-
-    QSh* shader() const { return _shader; }
-
-protected:
-    bool _isAlpha;
-    QSh* _shader;
+    bool m_isAlpha;
+    QShPtr m_shader;
 };
 
 }

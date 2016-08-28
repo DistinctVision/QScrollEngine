@@ -4,19 +4,12 @@
 
 namespace QScrollEngine {
 
-int QSh__Blur::locationMatrixWVP;
-int QSh__Blur::locationScreenTexture;
-int QSh__Blur::locationTexelParam;
-const QVector2D QSh__Blur::_D = QVector2D(1.2f, 0.66f);
+QSh__Blur::UniformLocation QSh__Blur::m_locations;
+const QVector2D QSh__Blur::m_D = QVector2D(1.2f, 0.66f);
 
-bool QSh__Blur::use(QScrollEngineContext* , QOpenGLShaderProgram* program)
+bool QSh__Blur::use(QScrollEngineContext* , QOpenGLShaderProgram* program, const QDrawObject3D* )
 {
-    program->setUniformValue(locationMatrixWVP, _finalMatrix);
-    if (_axisX)
-        program->setUniformValue(locationTexelParam, QVector3D(_texelParam.x(), 0.0f, _texelParam.z()));
-    else
-        program->setUniformValue(locationTexelParam, QVector3D(0.0f, _texelParam.y(), _texelParam.z()));
-    program->setUniformValue(locationScreenTexture, 0);
+    m_locations.bindParameters(program, this);
     return true;
 }
 
@@ -30,15 +23,23 @@ void QSh__Blur::load(QScrollEngineContext* context, std::vector<QSharedPointer<Q
 {
     shaders.resize(1);
     shaders[0] = QSharedPointer<QOpenGLShaderProgram>(new QOpenGLShaderProgram);
-    if (!context->loadShader(shaders[0].data(), "Texture1", "Blur"))
+    if (!context->loadShader(shaders[0].data(), "Texture", "Blur"))
         return;
-    shaders[0]->bindAttributeLocation("vertex_position", 0);
-    shaders[0]->bindAttributeLocation("vertex_texcoord", 1);
-    if (!context->checkBindShader(shaders[0].data(), "Blur"))
-        return;
-    QSh__Blur::locationMatrixWVP = shaders[0]->uniformLocation("matrix_wvp");
-    QSh__Blur::locationScreenTexture = shaders[0]->uniformLocation("screenTexture");
-    QSh__Blur::locationTexelParam = shaders[0]->uniformLocation("texelParam");
+    m_locations.loadLocations(shaders[0].data());
+}
+
+void QSh__Blur::UniformLocation::bindParameters(QOpenGLShaderProgram* program, const QSh__Blur* shader) const
+{
+    program->setUniformValue(matrixWVP, shader->finalMatrix());
+    program->setUniformValue(texelParam, shader->texelParam());
+    program->setUniformValue(screenTexture, 0);
+}
+
+void QSh__Blur::UniformLocation::loadLocations(QOpenGLShaderProgram* shader)
+{
+    matrixWVP = shader->uniformLocation("matrix_wvp");
+    screenTexture = shader->uniformLocation("screenTexture");
+    texelParam = shader->uniformLocation("texelParam");
 }
 
 }

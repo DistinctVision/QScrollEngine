@@ -3,6 +3,8 @@ QT       += multimedia
 
 CONFIG += c++11
 
+INCLUDEPATH += .
+
 SOURCES += \
     $$PWD/QScrollEngine/QAnimation3D.cpp \
     $$PWD/QScrollEngine/QBoundingBox.cpp \
@@ -21,21 +23,20 @@ SOURCES += \
     $$PWD/QScrollEngine/QShObject3D.cpp \
     $$PWD/QScrollEngine/QSpotLight.cpp \
     $$PWD/QScrollEngine/QSprite.cpp \
-    $$PWD/QScrollEngine/Shaders/QSh.cpp \
     $$PWD/QScrollEngine/Shaders/QSh__Bloom.cpp \
     $$PWD/QScrollEngine/Shaders/QSh__BloomMap.cpp \
     $$PWD/QScrollEngine/Shaders/QSh__Blur.cpp \
     $$PWD/QScrollEngine/Shaders/QSh_Color.cpp \
     $$PWD/QScrollEngine/Shaders/QSh_ColoredPart.cpp \
     $$PWD/QScrollEngine/Shaders/QSh_Light.cpp \
-    $$PWD/QScrollEngine/Shaders/QSh_Texture1.cpp \
     $$PWD/QScrollEngine/Tools/QIsoSurface.cpp \
-    $$PWD/QScrollEngine/Tools/PlanarShadows.cpp \
+    $$PWD/QScrollEngine/Tools/QPlanarShadows.cpp \
     $$PWD/QScrollEngine/QFileSaveLoad3DS.cpp \
     $$PWD/QScrollEngine/QScrollEngineContext.cpp \
     $$PWD/QScrollEngine/Shaders/QSh_Refraction_FallOff.cpp \
-    $$PWD/QScrollEngine/Shaders/QSh_Sphere_Light.cpp \
-    $$PWD/QScrollEngine/Shaders/QSh_Sphere_Texture1.cpp
+    $$PWD/QScrollEngine/Shaders/QSh_Texture.cpp \
+    $$PWD/QScrollEngine/Shaders/QSh_LightVC.cpp \
+    $$PWD/QScrollEngine/QSkinnedMesh.cpp
 
 HEADERS += \
     $$PWD/QScrollEngine/QAnimation3D.h \
@@ -63,17 +64,15 @@ HEADERS += \
     $$PWD/QScrollEngine/Shaders/QSh_Color.h \
     $$PWD/QScrollEngine/Shaders/QSh_ColoredPart.h \
     $$PWD/QScrollEngine/Shaders/QSh_Light.h \
-    $$PWD/QScrollEngine/Shaders/QSh_Texture1.h \
     $$PWD/QScrollEngine/Tools/QIsoSurface.h \
     $$PWD/QScrollEngine/QFileSaveLoad3DS.h \
     $$PWD/QScrollEngine/QScrollEngineContext.h \
     $$PWD/QScrollEngine/QScrollEngineWidget.h \
-    $$PWD/QScrollEngine/Tools/PlanarShadows.h \
+    $$PWD/QScrollEngine/Tools/QPlanarShadows.h \
     $$PWD/QScrollEngine/Shaders/QSh_Refraction_FallOff.h \
-    $$PWD/QScrollEngine/Shaders/QSh_Sphere_Light.h \
-    $$PWD/QScrollEngine/Shaders/QSh_Sphere_Texture1.h
-
-INCLUDEPATH += .
+    $$PWD/QScrollEngine/Shaders/QSh_Texture.h \
+    $$PWD/QScrollEngine/Shaders/QSh_LightVC.h \
+    $$PWD/QScrollEngine/QSkinnedMesh.h
 
 RESOURCES += \
     $$PWD/QScrollEngine/shaders.qrc

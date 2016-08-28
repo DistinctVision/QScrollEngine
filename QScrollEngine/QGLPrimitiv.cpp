@@ -1,5 +1,6 @@
 #include "QScrollEngine/QGLPrimitiv.h"
 #include "QScrollEngine/QMesh.h"
+#include "QScrollEngine/Shaders/QSh.h"
 
 #include <QVector2D>
 #include <QVector3D>
@@ -13,15 +14,22 @@ void QGLPrimitiv::createQuad(QMesh* mesh)
     mesh->setSizeOfELement(3);
     mesh->clear();
 
+    mesh->enableVertexAttribute(QSh::VertexAttributes::TextureCoords);
+    mesh->enableVertexAttribute(QSh::VertexAttributes::Normals);
+
     mesh->setCountVertices(4);
     mesh->setVertexPosition(0, QVector3D(-0.5f, -0.5f, 0.0f));
     mesh->setVertexTextureCoord(0, QVector2D(0.0f, 0.0f));
+    mesh->setVertexNormal(0, QVector3D(0.0f, 0.0f, 1.0f));
     mesh->setVertexPosition(1, QVector3D(0.5f, -0.5f, 0.0f));
     mesh->setVertexTextureCoord(1, QVector2D(1.0f, 0.0f));
+    mesh->setVertexNormal(1, QVector3D(0.0f, 0.0f, 1.0f));
     mesh->setVertexPosition(2, QVector3D(0.5f, 0.5f, 0.0f));
     mesh->setVertexTextureCoord(2, QVector2D(1.0f, 1.0f));
+    mesh->setVertexNormal(2, QVector3D(0.0f, 0.0f, 1.0f));
     mesh->setVertexPosition(3, QVector3D(-0.5f, 0.5f, 0.0f));
     mesh->setVertexTextureCoord(3, QVector2D(0.0f, 1.0f));
+    mesh->setVertexNormal(3, QVector3D(0.0f, 0.0f, 1.0f));
     mesh->addTriangle(0, 1, 2);
     mesh->addTriangle(0, 2, 3);
 
@@ -33,6 +41,9 @@ void QGLPrimitiv::createCube(QMesh* mesh)
 {
     mesh->setSizeOfELement(3);
     mesh->clear();
+
+    mesh->enableVertexAttribute(QSh::VertexAttributes::TextureCoords);
+    mesh->enableVertexAttribute(QSh::VertexAttributes::Normals);
 
     mesh->setCountVertices(24);
     QVector3D nx(1.0f, 0.0f, 0.0f), ny(0.0f, 1.0f, 0.0f), nz(0.0f, 0.0f, 1.0f);
@@ -59,14 +70,18 @@ void QGLPrimitiv::createCube(QMesh* mesh)
         int indexShift = i * 4;
         mesh->setVertexPosition(indexShift, nx * (-0.5f) + ny * (-0.5f) + nz * 0.5f);
         mesh->setVertexTextureCoord(indexShift, QVector2D(0.0f, 0.0f));
+        mesh->setVertexNormal(indexShift, -nz);
         mesh->setVertexPosition(indexShift+1, nx * 0.5f + ny * (-0.5f) + nz * 0.5f);
         mesh->setVertexTextureCoord(indexShift+1, QVector2D(1.0f, 0.0f));
+        mesh->setVertexNormal(indexShift+1, -nz);
         mesh->setVertexPosition(indexShift+2, nx * 0.5f + ny * 0.5f + nz * 0.5f);
         mesh->setVertexTextureCoord(indexShift+2, QVector2D(1.0f, 1.0f));
+        mesh->setVertexNormal(indexShift+2, -nz);
         mesh->setVertexPosition(indexShift+3, nx * (-0.5f) + ny * 0.5f + nz * 0.5f);
         mesh->setVertexTextureCoord(indexShift+3, QVector2D(0.0f, 1.0f));
-        mesh->addTriangle(indexShift, indexShift+2, indexShift+1);
-        mesh->addTriangle(indexShift, indexShift+3, indexShift+2);
+        mesh->setVertexNormal(indexShift+3, -nz);
+        mesh->addTriangle(indexShift, indexShift+1, indexShift+2);
+        mesh->addTriangle(indexShift, indexShift+2, indexShift+3);
     }
 
     mesh->applyChanges();
@@ -82,7 +97,9 @@ void QGLPrimitiv::createSphere(QMesh* mesh, float radius, int rings, int sectors
     float const S = 1.0f / static_cast<float>(sectors-1);
     int r, s;
 
-    mesh->setEnable_vertex_normal(true);
+    mesh->enableVertexAttribute(QSh::VertexAttributes::TextureCoords);
+    mesh->enableVertexAttribute(QSh::VertexAttributes::Normals);
+
     mesh->setCountVertices(rings * sectors);
     QVector3D dir;
     int i = 0;
@@ -117,6 +134,48 @@ void QGLPrimitiv::createSphere(QMesh* mesh, float radius, int rings, int sectors
         }
     }
 
+    mesh->applyChanges();
+    mesh->updateLocalBoundingBox();
+}
+
+void QGLPrimitiv::createCylinder(QMesh* mesh, float radius, float height, int lengthsegs, int heightsegs)
+{
+    using namespace std;
+
+    // but if there is data, this will append it correctly
+    mesh->enableVertexAttribute(QSh::VertexAttributes::TextureCoords);
+    mesh->enableVertexAttribute(QSh::VertexAttributes::Normals);
+    mesh->setCountVertices((lengthsegs + 1) * (heightsegs + 1));
+    float heightstride = height / (float)(heightsegs);
+    float h = - height * 0.5f;
+    float a = 0.0f;
+    for(int i = 0; i <= heightsegs; ++i) {
+        for (int j = 0; j <= lengthsegs; ++j){
+            mesh->setVertexPosition(i * (lengthsegs + 1) + j, QVector3D(cos(a) * radius,
+                                                                        sin(a) * radius,
+                                                                        h));
+            mesh->setVertexTextureCoord(i * (lengthsegs + 1) + j, QVector2D((float)(j) / (float)(lengthsegs),
+                                                                            (float)(i) / (float)(heightsegs)));
+            a += (float)(M_PI * 2.0f) / (float)(lengthsegs);
+        }
+        a = 0.0f;
+        h += heightstride;
+    }
+    std::vector<GLuint>& indices = mesh->elements();
+    indices.resize(6 * lengthsegs * heightsegs);
+    std::size_t off = 0;
+    for (int i = 0;  i < heightsegs; ++i){
+        for (int j = 0; j < lengthsegs; ++j){
+            indices[off    ] = i * (lengthsegs + 1) + j;
+            indices[off + 1] = i * (lengthsegs + 1) + j + 1;
+            indices[off + 2] = (i + 1) * (lengthsegs + 1) + j;
+            indices[off + 3] = i * (lengthsegs + 1) + j + 1;
+            indices[off + 4] = (i + 1) * (lengthsegs + 1) + j + 1;
+            indices[off + 5] = (i + 1) * (lengthsegs + 1) + j;
+            off += 6;
+        }
+    }
+    mesh->updateNormals();
     mesh->applyChanges();
     mesh->updateLocalBoundingBox();
 }

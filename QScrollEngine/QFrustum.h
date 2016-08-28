@@ -50,7 +50,7 @@ public:
 
 private:
     // Хранит A B C и D переменные для каждой стороны пирамиды.
-    float _frustum[6][4];
+    float m_frustum[6][4];
 
     void normalizePlane(int side);
 };

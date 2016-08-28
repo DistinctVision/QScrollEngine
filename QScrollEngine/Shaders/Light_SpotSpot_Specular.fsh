@@ -15,7 +15,7 @@ struct SpotLight
 };
 
 uniform vec4 color;
-uniform sampler2D texture0;
+uniform sampler2D texture;
 uniform float specularIntensity;
 uniform float specularPower;
 uniform vec3 viewPosition;
@@ -31,7 +31,7 @@ varying vec2 texcoord;
 
 void main()
 {
-    vec4 diffuseColor = color * texture2D(texture0, texcoord);
+    vec4 diffuseColor = color * texture2D(texture, texcoord);
     vec3 resultLight = ambientColor.rgb, lightDir;
     vec3 delta = position - light0.position;
     vec3 viewDir = normalize(viewPosition - position);

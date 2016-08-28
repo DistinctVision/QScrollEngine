@@ -13,26 +13,44 @@ class QScrollEngineContext;
 
 class QAnimation3D
 {
-    friend class QEntity;
-    friend class QScene;
-    friend class QScrollEngineContext;
 public:
     typedef struct AnimKeyPosition
     {
         qint16 time;
         QVector3D position;
+
+        AnimKeyPosition() {}
+        AnimKeyPosition(qint16 time, const QVector3D& position)
+        {
+            this->time = time;
+            this->position = position;
+        }
     } AnimKeyPosition;
 
     typedef struct AnimKeyOrientation
     {
         qint16 time;
         QQuaternion orienation;
+
+        AnimKeyOrientation() {}
+        AnimKeyOrientation(qint16 time, const QQuaternion& orienation)
+        {
+            this->time = time;
+            this->orienation = orienation;
+        }
     } AnimKeyOrientation;
 
     typedef struct AnimKeyScale
     {
         qint16 time;
         QVector3D scale;
+
+        AnimKeyScale() {}
+        AnimKeyScale(qint16 time, const QVector3D& scale)
+        {
+            this->time = time;
+            this->scale = scale;
+        }
     } AnimKeyScale;
 
 public:
@@ -42,10 +60,10 @@ public:
     void updateFrame();
     void setAnimationTime(float time);
     void entityToAnimation(QEntity* entity) const;
-    float currentTime() const { return _currentTime; }
-    qint16 maxTimeKeysPosition() const { return _animKeysPosition.at(_animKeysPosition.size() - 1).time; }
-    qint16 maxTimeKeysOrientation() const { return _animKeysPosition.at(_animKeysPosition.size() - 1).time; }
-    qint16 maxTimeKeysScale() const { return _animKeysPosition.at(_animKeysPosition.size() - 1).time; }
+    float currentTime() const { return m_currentTime; }
+    qint16 maxTimeKeysPosition() const { return m_animKeysPosition.at(m_animKeysPosition.size() - 1).time; }
+    qint16 maxTimeKeysOrientation() const { return m_animKeysPosition.at(m_animKeysPosition.size() - 1).time; }
+    qint16 maxTimeKeysScale() const { return m_animKeysPosition.at(m_animKeysPosition.size() - 1).time; }
     qint16 maxTimesKeys() const
     {
         qint16 m1 = maxTimeKeysPosition(), m2 = maxTimeKeysOrientation(), m3 = maxTimeKeysScale();
@@ -58,9 +76,9 @@ public:
             return m2;
         return m3;
     }
-    qint16 minTimeKeysPosition() const { return _animKeysPosition.at(0).time; }
-    qint16 minTimeKeysOrientation() const { return _animKeysOrientation.at(0).time; }
-    qint16 minTimeKeysScale() const { return _animKeysScale.at(0).time; }
+    qint16 minTimeKeysPosition() const { return m_animKeysPosition.at(0).time; }
+    qint16 minTimeKeysOrientation() const { return m_animKeysOrientation.at(0).time; }
+    qint16 minTimeKeysScale() const { return m_animKeysScale.at(0).time; }
     qint16 minTimesKeys() const
     {
         qint16 m1 = minTimeKeysPosition(), m2 = minTimeKeysOrientation(), m3 = minTimeKeysScale();
@@ -74,45 +92,49 @@ public:
         return m3;
     }
 
-    int countAnimKeysPosition() const { return static_cast<int>(_animKeysPosition.size()); }
-    AnimKeyPosition& animKeyPosition(int index) { return _animKeysPosition.at(index); }
+    int countAnimKeysPosition() const { return static_cast<int>(m_animKeysPosition.size()); }
+    AnimKeyPosition& animKeyPosition(int index) { return m_animKeysPosition.at(index); }
     void deleteAnimKeyPosition(int index);
     int addAnimKey(const AnimKeyPosition& key);
-    int countAnimKeysOrientation() const { return static_cast<int>(_animKeysOrientation.size()); }
-    AnimKeyOrientation& animKeyOrientation(int index) { return _animKeysOrientation.at(index); }
+    int countAnimKeysOrientation() const { return static_cast<int>(m_animKeysOrientation.size()); }
+    AnimKeyOrientation& animKeyOrientation(int index) { return m_animKeysOrientation.at(index); }
     void deleteAnimKeyOrientation(int index);
     int addAnimKey(const AnimKeyOrientation& key);
-    int countAnimKeysScale() const { return static_cast<int>(_animKeysScale.size()); }
-    AnimKeyScale& animKeyScale(int index) { return _animKeysScale.at(index); }
+    int countAnimKeysScale() const { return static_cast<int>(m_animKeysScale.size()); }
+    AnimKeyScale& animKeyScale(int index) { return m_animKeysScale.at(index); }
     void deleteAnimKeyScale(int index);
     int addAnimKey(const AnimKeyScale& key);
     void scaleTimeAnimation(float scale);
 
-    float animationSpeed() const { return _animationSpeed; }
-    void setAnimationSpeed(float speed) { _animationSpeed = speed; }
-    int countUsedEntities() const { return _countUsedEntities; }
-    bool enable() const { return _enable; }
-    void setEnable(bool enable) { _enable = enable; }
-    bool loop() const { return _loop; }
-    void setLoop(bool loop) { _loop = loop; }
+    float animationSpeed() const { return m_animationSpeed; }
+    void setAnimationSpeed(float speed) { m_animationSpeed = speed; }
+    int countUsedEntities() const { return m_countUsedEntities; }
+    bool enable() const { return m_enable; }
+    void setEnable(bool enable) { m_enable = enable; }
+    bool loop() const { return m_loop; }
+    void setLoop(bool loop) { m_loop = loop; }
     static float ease(float time, float easeFrom, float easeTo);
 
 private:
-    static float _animationSpeed_global;
+    friend class QEntity;
+    friend class QScene;
+    friend class QScrollEngineContext;
 
-    bool _enable;
-    bool _loop;
-    std::vector<AnimKeyPosition> _animKeysPosition;
-    int _currentKeyPosition;
-    std::vector<AnimKeyOrientation> _animKeysOrientation;
-    int _currentKeyOrientation;
-    std::vector<AnimKeyScale> _animKeysScale;
-    int _currentKeyScale;
+    static float m_animationSpeed_global;
 
-    float _currentTime;
-    float _animationSpeed;
-    float _endTime;
-    int _countUsedEntities;
+    bool m_enable;
+    bool m_loop;
+    std::vector<AnimKeyPosition> m_animKeysPosition;
+    int m_currentKeyPosition;
+    std::vector<AnimKeyOrientation> m_animKeysOrientation;
+    int m_currentKeyOrientation;
+    std::vector<AnimKeyScale> m_animKeysScale;
+    int m_currentKeyScale;
+
+    float m_currentTime;
+    float m_animationSpeed;
+    float m_endTime;
+    int m_countUsedEntities;
 
     void _entityToAnimation(QEntity* entity) const;
 };

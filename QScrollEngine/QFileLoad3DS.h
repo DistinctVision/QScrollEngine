@@ -170,9 +170,9 @@ protected:
         _Edge* edges[3];
     } _Triangle;
 
-    std::vector<QEntity*> _entities;
-    std::vector<Material3DS> _materials;
-    std::vector<TempInfo> _tempInfo;
+    std::vector<QEntity*> m_entities;
+    std::vector<Material3DS> m_materials;
+    std::vector<TempInfo> m_tempInfo;
 
     inline _Edge* _findEdge(std::list<_Edge*>& newEdges, unsigned int oldVertexA, unsigned int oldVertexB)
     {

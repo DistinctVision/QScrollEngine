@@ -58,7 +58,7 @@ protected:
     void resizeGL(int width, int height);
     void paintGL();
 
-    QTimer _timer;
+    QTimer m_timer;
 };
 
 }

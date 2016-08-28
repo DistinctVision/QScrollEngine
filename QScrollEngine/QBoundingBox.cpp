@@ -11,14 +11,14 @@ QBoundingBox QBoundingBox::transform(const QMatrix4x4& transformMatrix) const
 
 void QBoundingBox::transform(QBoundingBox& result, const QMatrix4x4& transformMatrix) const
 {
-    result.toPoint(QOtherMathFunctions::transform(transformMatrix, _min));
-    result.addPoint(QOtherMathFunctions::transform(transformMatrix, _max));
-    result.addPoint(QOtherMathFunctions::transform(transformMatrix, QVector3D(_min.x(), _min.y(), _max.z())));
-    result.addPoint(QOtherMathFunctions::transform(transformMatrix, QVector3D(_min.x(), _max.y(), _min.z())));
-    result.addPoint(QOtherMathFunctions::transform(transformMatrix, QVector3D(_min.x(), _max.y(), _max.z())));
-    result.addPoint(QOtherMathFunctions::transform(transformMatrix, QVector3D(_max.x(), _min.y(), _min.z())));
-    result.addPoint(QOtherMathFunctions::transform(transformMatrix, QVector3D(_max.x(), _min.y(), _max.z())));
-    result.addPoint(QOtherMathFunctions::transform(transformMatrix, QVector3D(_max.x(), _max.y(), _min.z())));
+    result.toPoint(QOtherMathFunctions::transform(transformMatrix, m_min));
+    result.addPoint(QOtherMathFunctions::transform(transformMatrix, m_max));
+    result.addPoint(QOtherMathFunctions::transform(transformMatrix, QVector3D(m_min.x(), m_min.y(), m_max.z())));
+    result.addPoint(QOtherMathFunctions::transform(transformMatrix, QVector3D(m_min.x(), m_max.y(), m_min.z())));
+    result.addPoint(QOtherMathFunctions::transform(transformMatrix, QVector3D(m_min.x(), m_max.y(), m_max.z())));
+    result.addPoint(QOtherMathFunctions::transform(transformMatrix, QVector3D(m_max.x(), m_min.y(), m_min.z())));
+    result.addPoint(QOtherMathFunctions::transform(transformMatrix, QVector3D(m_max.x(), m_min.y(), m_max.z())));
+    result.addPoint(QOtherMathFunctions::transform(transformMatrix, QVector3D(m_max.x(), m_max.y(), m_min.z())));
 }
 
 void QBoundingBox::set(const QBoundingBox& boundingBox, const QMatrix4x4& transform)
@@ -29,53 +29,47 @@ void QBoundingBox::set(const QBoundingBox& boundingBox, const QMatrix4x4& transf
 void QBoundingBox::merge(const QBoundingBox& boundingBox, const QMatrix4x4& transform)
 {
     addPoint(QOtherMathFunctions::transform(transform,
-                                      boundingBox._min));
+                                      boundingBox.m_min));
     addPoint(QOtherMathFunctions::transform(transform,
-                                      boundingBox._max));
+                                      boundingBox.m_max));
     addPoint(QOtherMathFunctions::transform(transform,
-                                      QVector3D(boundingBox._min.x(), boundingBox._min.y(), boundingBox._max.z())));
+                                      QVector3D(boundingBox.m_min.x(), boundingBox.m_min.y(), boundingBox.m_max.z())));
     addPoint(QOtherMathFunctions::transform(transform,
-                                      QVector3D(boundingBox._min.x(), boundingBox._max.y(), boundingBox._min.z())));
+                                      QVector3D(boundingBox.m_min.x(), boundingBox.m_max.y(), boundingBox.m_min.z())));
     addPoint(QOtherMathFunctions::transform(transform,
-                                      QVector3D(boundingBox._min.x(), boundingBox._max.y(), boundingBox._max.z())));
+                                      QVector3D(boundingBox.m_min.x(), boundingBox.m_max.y(), boundingBox.m_max.z())));
     addPoint(QOtherMathFunctions::transform(transform,
-                                      QVector3D(boundingBox._max.x(), boundingBox._min.y(), boundingBox._min.z())));
+                                      QVector3D(boundingBox.m_max.x(), boundingBox.m_min.y(), boundingBox.m_min.z())));
     addPoint(QOtherMathFunctions::transform(transform,
-                                      QVector3D(boundingBox._max.x(), boundingBox._min.y(), boundingBox._max.z())));
+                                      QVector3D(boundingBox.m_max.x(), boundingBox.m_min.y(), boundingBox.m_max.z())));
     addPoint(QOtherMathFunctions::transform(transform,
-                                      QVector3D(boundingBox._max.x(), boundingBox._max.y(), boundingBox._min.z())));
+                                      QVector3D(boundingBox.m_max.x(), boundingBox.m_max.y(), boundingBox.m_min.z())));
 }
 
 float QBoundingBox::supportValue(const QVector3D& dir) const
 {
-    QVector3D t(_min.x(), _min.y(), _max.z());
-    float svalue = QVector3D::dotProduct(t, dir), v;
-    t.setY(_max.y());//min.x max.y max.z
-    v = QVector3D::dotProduct(t, dir);
+    float svalue = m_min.x() * dir.x() + m_min.y() * dir.y() + m_min.z() * dir.z(), v;
+    v = m_min.x() * dir.x() + m_min.y() * dir.y() + m_max.z() * dir.z();
     if (v > svalue)
         svalue = v;
-    t.setZ(_min.z());//min.x max.y min.z
-    v = QVector3D::dotProduct(t, dir);
+    v = m_min.x() * dir.x() + m_max.y() * dir.y() + m_min.z() * dir.z();
     if (v > svalue)
         svalue = v;
-    t.setX(_max.x());//max.x max.y min.z
-    v = QVector3D::dotProduct(t, dir);
+    v = m_max.x() * dir.x() + m_min.y() * dir.y() + m_min.z() * dir.z();
     if (v > svalue)
         svalue = v;
-    t.setY(_min.y());//max.x min.y min.z
-    v = QVector3D::dotProduct(t, dir);
+    v = m_max.x() * dir.x() + m_max.y() * dir.y() + m_min.z() * dir.z();
     if (v > svalue)
         svalue = v;
-    t.setZ(_max.z());//max.x min.y max.z
-    v = QVector3D::dotProduct(t, dir);
+    v = m_min.x() * dir.x() + m_max.y() * dir.y() + m_max.z() * dir.z();
     if (v > svalue)
         svalue = v;
-    v = QVector3D::dotProduct(_min, dir);
+    v = m_max.x() * dir.x() + m_min.y() * dir.y() + m_max.z() * dir.z();
     if (v > svalue)
         svalue = v;
-    v = QVector3D::dotProduct(_max, dir);
+    v = m_max.x() * dir.x() + m_max.y() * dir.y() + m_max.z() * dir.z();
     if (v > svalue)
-        return v;
+        svalue = v;
     return svalue;
 }
 
@@ -91,35 +85,35 @@ bool QBoundingBox::collision(const QMatrix4x4& transform,
     QVector3D B_localZ(transformB(0, 2), transformB(1, 2), transformB(2, 2));
     //A
     QVector3D tempDir = QOtherMathFunctions::transformTransposed(transformB, A_localX);
-    if ((_min.x() + boundingBoxB.supportValue(tempDir)) > 0.0f)
+    if ((m_min.x() + boundingBoxB.supportValue(tempDir)) > 0.0f)
         return false;
-    if ((_max.x() + boundingBoxB.supportValue(-tempDir)) > 0.0f)
+    if ((m_max.x() + boundingBoxB.supportValue(-tempDir)) > 0.0f)
         return false;
     tempDir = QOtherMathFunctions::transformTransposed(transformB, A_localY);
-    if ((_min.y() + boundingBoxB.supportValue(tempDir)) > 0.0f)
+    if ((m_min.y() + boundingBoxB.supportValue(tempDir)) > 0.0f)
         return false;
-    if ((_max.y() + boundingBoxB.supportValue(-tempDir)) > 0.0f)
+    if ((m_max.y() + boundingBoxB.supportValue(-tempDir)) > 0.0f)
         return false;
     tempDir = QOtherMathFunctions::transformTransposed(transformB, A_localZ);
-    if ((_min.z() + boundingBoxB.supportValue(tempDir)) > 0.0f)
+    if ((m_min.z() + boundingBoxB.supportValue(tempDir)) > 0.0f)
         return false;
-    if ((_max.z() + boundingBoxB.supportValue(-tempDir)) > 0.0f)
+    if ((m_max.z() + boundingBoxB.supportValue(-tempDir)) > 0.0f)
         return false;
     //B
     tempDir = QOtherMathFunctions::transformTransposed(transform, B_localX);
-    if ((boundingBoxB._min.x() + supportValue(tempDir)) > 0.0f)
+    if ((boundingBoxB.m_min.x() + supportValue(tempDir)) > 0.0f)
         return false;
-    if ((boundingBoxB._max.x() + supportValue(-tempDir)) > 0.0f)
+    if ((boundingBoxB.m_max.x() + supportValue(-tempDir)) > 0.0f)
         return false;
     tempDir = QOtherMathFunctions::transformTransposed(transform, B_localY);
-    if ((boundingBoxB._min.y() + supportValue(tempDir)) > 0.0f)
+    if ((boundingBoxB.m_min.y() + supportValue(tempDir)) > 0.0f)
         return false;
-    if ((boundingBoxB._max.y() + supportValue(-tempDir)) > 0.0f)
+    if ((boundingBoxB.m_max.y() + supportValue(-tempDir)) > 0.0f)
         return false;
     tempDir = QOtherMathFunctions::transformTransposed(transform, B_localZ);
-    if ((boundingBoxB._min.z() + supportValue(tempDir)) > 0.0f)
+    if ((boundingBoxB.m_min.z() + supportValue(tempDir)) > 0.0f)
         return false;
-    if ((boundingBoxB._max.z() + supportValue(-tempDir)) > 0.0f)
+    if ((boundingBoxB.m_max.z() + supportValue(-tempDir)) > 0.0f)
         return false;
     //edge
     QVector3D edge[6];

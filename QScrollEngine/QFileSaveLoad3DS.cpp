@@ -10,9 +10,9 @@ namespace QScrollEngine {
 bool QFileSaveLoad3DS::saveEntity(QScrollEngineContext* context, QEntity* entity, const QString& fileName,
                                   const QString& textureDir, const QString& prefixTextureName)
 {
-    _saveTexture = (textureDir != "!");
-    _entities.clear();
-    _textureInfo.clear();
+    m_saveTexture = (textureDir != "!");
+    m_entities.clear();
+    m_textureInfo.clear();
     QFile file(fileName);
     if (!file.open(QFile::WriteOnly)) {
         qDebug() << QString("QScrollEngine: Error. Failed to write file '") + fileName + "'.";
@@ -32,23 +32,23 @@ bool QFileSaveLoad3DS::saveEntity(QScrollEngineContext* context, QEntity* entity
     //data << static_cast<quint16>(CHUNK_END) << static_cast<quint32>(6);
     data.writeToFile(file);
     _writeTextures(context, textureDir);
-    _entities.clear();
-    _textureInfo.clear();
+    m_entities.clear();
+    m_textureInfo.clear();
     file.close();
     return true;
 }
 
 void QFileSaveLoad3DS::_entitiesToVector(QEntity* entity)
 {
-    _entities.push_back(entity);
+    m_entities.push_back(entity);
     for (unsigned int i=0; i<entity->countEntityChilds(); ++i)
         _entitiesToVector(entity->childEntity(i));
 }
 
 int QFileSaveLoad3DS::_findEntityInVector(QEntity* entity)
 {
-    for (unsigned int i=0; i<_entities.size(); ++i) {
-        if (_entities[i] == entity)
+    for (unsigned int i=0; i<m_entities.size(); ++i) {
+        if (m_entities[i] == entity)
             return static_cast<int>(i);
     }
     return -1;
@@ -63,8 +63,8 @@ void QFileSaveLoad3DS::_write(QFileData& data, const QString& string)
 
 int QFileSaveLoad3DS::_findTexture(const QString& name)
 {
-    for (unsigned int i=0; i<_textureInfo.size(); ++i) {
-        if (_textureInfo[i].name == name)
+    for (unsigned int i=0; i<m_textureInfo.size(); ++i) {
+        if (m_textureInfo[i].name == name)
             return static_cast<int>(i);
     }
     return -1;
@@ -72,8 +72,8 @@ int QFileSaveLoad3DS::_findTexture(const QString& name)
 
 int QFileSaveLoad3DS::_findTexture(QOpenGLTexture* texture)
 {
-    for (unsigned int i=0; i<_textureInfo.size(); ++i) {
-        if (_textureInfo[i].texture == texture)
+    for (unsigned int i=0; i<m_textureInfo.size(); ++i) {
+        if (m_textureInfo[i].texture == texture)
             return static_cast<int>(i);
     }
     return -1;
@@ -83,7 +83,7 @@ void QFileSaveLoad3DS::_checkTextureName(QString& name, const QString& prefixTex
 {
     if (name.left(prefixTextureName.size()) == prefixTextureName)
         name = name.right(name.size() - prefixTextureName.size());
-    if (!_saveTexture)
+    if (!m_saveTexture)
         return;
     if ((name.right(4) != ".jpg") &&
         (name.right(4) != ".JPG") &&
@@ -95,18 +95,19 @@ void QFileSaveLoad3DS::_checkTextureName(QString& name, const QString& prefixTex
     name = name.right(12);
 }
 
-QString QFileSaveLoad3DS::_writeMaterial(QScrollEngineContext* context, ChunkData& chunkData, const QString& prefixTextureName, QSh* shader)
+QString QFileSaveLoad3DS::_writeMaterial(QScrollEngineContext* context, ChunkData& chunkData,
+                                         const QString& prefixTextureName, QSh* shader)
 {
     QString materialName = "";
     ChunkData chunkDataMaterial, chunkDataTemp;
     chunkDataMaterial.id = CHUNK_EDIT_MATERIAL;
     chunkDataMaterial.data.clear();
-    if (shader->indexType() == QSh::Color) {
+    if (shader->typeIndex() == static_cast<int>(QSh::Type::Color)) {
         QSh_Color* shaderColor = static_cast<QSh_Color*>(shader);
         chunkDataTemp.id = CHUNK_MATERIAL_NAME;
         chunkDataTemp.data.clear();
-        materialName = QString("ShaderColor") + QString::number(_currentIdShader);
-        ++_currentIdShader;
+        materialName = QString("ShaderColor") + QString::number(m_currentIdShader);
+        ++m_currentIdShader;
         _write(chunkDataTemp.data, materialName);
         chunkDataTemp.length = 6 + chunkDataTemp.data.size();
         chunkDataMaterial.data << chunkDataTemp.id << chunkDataTemp.length << chunkDataTemp.data;
@@ -119,27 +120,27 @@ QString QFileSaveLoad3DS::_writeMaterial(QScrollEngineContext* context, ChunkDat
         chunkDataTemp.data << static_cast<quint16>(CHUNK_COLOR_F32) << static_cast<quint32>(6 + 3 * 4) << r << g << b;
         chunkDataTemp.length = 6 + chunkDataTemp.data.size();
         chunkDataMaterial.data << chunkDataTemp.id << chunkDataTemp.length << chunkDataTemp.data;
-    } else if (shader->indexType() == QSh::Texture1) {
-        QSh_Texture1* shaderTexture1 = dynamic_cast<QSh_Texture1*>(shader);
+    } else if (shader->typeIndex() == static_cast<int>(QSh::Type::Texture)) {
+        QSh_Texture* shaderTexture1 = dynamic_cast<QSh_Texture*>(shader);
         int findedTextureIndex = -1;
-        if (shaderTexture1->texture0()) {
-            findedTextureIndex = _findTexture(shaderTexture1->texture0());
+        if (shaderTexture1->texture()) {
+            findedTextureIndex = _findTexture(shaderTexture1->texture());
             if (findedTextureIndex < 0) {
                 TextureInfo ti;
-                ti.texture = shaderTexture1->texture0();
+                ti.texture = shaderTexture1->texture();
                 if (!context->textureName(ti.name, ti.texture)) {
-                    ti.name = QString("Texture") + QString::number(_currentIdTexture);
-                    ++_currentIdTexture;
+                    ti.name = QString("Texture") + QString::number(m_currentIdTexture);
+                    ++m_currentIdTexture;
                 }
-                findedTextureIndex = static_cast<int>(_textureInfo.size());
+                findedTextureIndex = static_cast<int>(m_textureInfo.size());
                 _checkTextureName(ti.name, prefixTextureName);
-                _textureInfo.push_back(ti);
+                m_textureInfo.push_back(ti);
             }
         }
         chunkDataTemp.id = CHUNK_MATERIAL_NAME;
         chunkDataTemp.data.clear();
-        materialName = QString("ShaderTexture") + QString::number(_currentIdShader);
-        ++_currentIdShader;
+        materialName = QString("ShaderTexture") + QString::number(m_currentIdShader);
+        ++m_currentIdShader;
         _write(chunkDataTemp.data, materialName);
         chunkDataTemp.length = 6 + chunkDataTemp.data.size();
         chunkDataMaterial.data << chunkDataTemp.id << chunkDataTemp.length << chunkDataTemp.data;
@@ -155,33 +156,33 @@ QString QFileSaveLoad3DS::_writeMaterial(QScrollEngineContext* context, ChunkDat
         if (findedTextureIndex >= 0) {
             chunkDataTemp.id = CHUNK_TEXTURE_FILE;
             chunkDataTemp.data.clear();
-            _write(chunkDataTemp.data, _textureInfo[findedTextureIndex].name);
+            _write(chunkDataTemp.data, m_textureInfo[findedTextureIndex].name);
             chunkDataTemp.length = 6 + chunkDataTemp.data.size();
             chunkDataMaterial.data << static_cast<quint16>(CHUNK_MATERIAL_COLORMAP) <<
                                       static_cast<quint32>(chunkDataTemp.length + 6) <<
                                       chunkDataTemp.id << chunkDataTemp.length << chunkDataTemp.data;
         }
-    } else if (shader->indexType() == QSh::Light) {
+    } else if (shader->typeIndex() == static_cast<int>(QSh::Type::Light)) {
         QSh_Light* shaderLight = dynamic_cast<QSh_Light*>(shader);
         int findedTextureIndex = -1;
-        if (shaderLight->texture0()) {
-            findedTextureIndex = _findTexture(shaderLight->texture0());
+        if (shaderLight->texture()) {
+            findedTextureIndex = _findTexture(shaderLight->texture());
             if (findedTextureIndex < 0) {
                 TextureInfo ti;
-                ti.texture = shaderLight->texture0();
+                ti.texture = shaderLight->texture();
                 if (!context->textureName(ti.name, ti.texture)) {
-                    ti.name = QString("Texture") + QString::number(_currentIdTexture);
-                    ++_currentIdTexture;
+                    ti.name = QString("Texture") + QString::number(m_currentIdTexture);
+                    ++m_currentIdTexture;
                 }
-                findedTextureIndex = static_cast<int>(_textureInfo.size());
+                findedTextureIndex = static_cast<int>(m_textureInfo.size());
                 _checkTextureName(ti.name, prefixTextureName);
-                _textureInfo.push_back(ti);
+                m_textureInfo.push_back(ti);
             }
         }
         chunkDataTemp.id = CHUNK_MATERIAL_NAME;
         chunkDataTemp.data.clear();
-        materialName = QString("ShaderLight") + QString::number(_currentIdShader);
-        ++_currentIdShader;
+        materialName = QString("ShaderLight") + QString::number(m_currentIdShader);
+        ++m_currentIdShader;
         _write(chunkDataTemp.data, materialName);
         chunkDataTemp.length = 6 + chunkDataTemp.data.size();
         chunkDataMaterial.data << chunkDataTemp.id << chunkDataTemp.length << chunkDataTemp.data;
@@ -197,7 +198,7 @@ QString QFileSaveLoad3DS::_writeMaterial(QScrollEngineContext* context, ChunkDat
         if (findedTextureIndex >= 0) {
             chunkDataTemp.id = CHUNK_TEXTURE_FILE;
             chunkDataTemp.data.clear();
-            _write(chunkDataTemp.data, _textureInfo[findedTextureIndex].name);
+            _write(chunkDataTemp.data, m_textureInfo[findedTextureIndex].name);
             chunkDataTemp.length = 6 + chunkDataTemp.data.size();
             chunkDataMaterial.data << static_cast<quint16>(CHUNK_MATERIAL_COLORMAP) <<
                                       static_cast<quint32>(chunkDataTemp.length + 6) <<
@@ -288,7 +289,7 @@ void QFileSaveLoad3DS::_writeMesh(ChunkData& chunkData, QMesh* mesh, const QStri
 
 void QFileSaveLoad3DS::_writeAnimation(ChunkData& chunkData, int indexEntity, const QString& name)
 {
-    QEntity* entity = _entities[indexEntity];
+    QEntity* entity = m_entities[indexEntity];
     QAnimation3D* animation = entity->animation();
     ChunkData chunkDataAnimation;
     chunkDataAnimation.id = CHUNK_KEYFRAME_TRACK;
@@ -401,12 +402,12 @@ void QFileSaveLoad3DS::_writeEntities(QScrollEngineContext* context, ChunkData& 
 {
     std::vector<QString> usedNames;
     QString entityName, materialName, meshName;
-    _currentIdTexture = _currentIdShader = 0;
+    m_currentIdTexture = m_currentIdShader = 0;
     int currentEntityId = 0;
     int currentMeshId = 0;
     unsigned int i;
-    for (i=0; i<_entities.size(); ++i) {
-        QEntity* entity = _entities[i];
+    for (i=0; i<m_entities.size(); ++i) {
+        QEntity* entity = m_entities[i];
         entityName = entity->name().left(10);
         if (entityName.isEmpty()) {
             entityName = "Entity" + QString::number(currentEntityId);
@@ -426,18 +427,18 @@ void QFileSaveLoad3DS::_writeEntities(QScrollEngineContext* context, ChunkData& 
             continue;
         }
         {
-            QEntity::QPartEntity* part = entity->part(0);
+            QEntity::Part* part = entity->part(0);
             if (part->shader())
-                materialName = _writeMaterial(context, chunkData, prefixTextureName, part->shader());
+                materialName = _writeMaterial(context, chunkData, prefixTextureName, part->shader().data());
             else
                 materialName = "";
             _writeMesh(chunkData, part->mesh(), entityName, materialName);
             _writeAnimation(chunkData, static_cast<int>(i), entityName);
         }
         for (unsigned int j=1; j<entity->countParts(); ++j) {
-            QEntity::QPartEntity* part = entity->part(j);
+            QEntity::Part* part = entity->part(j);
             if (part->shader())
-                materialName = _writeMaterial(context, chunkData, prefixTextureName, part->shader());
+                materialName = _writeMaterial(context, chunkData, prefixTextureName, part->shader().data());
             else
                 materialName = "";
             meshName = "Mesh" + QString::number(currentMeshId);
@@ -447,14 +448,14 @@ void QFileSaveLoad3DS::_writeEntities(QScrollEngineContext* context, ChunkData& 
                 ++currentMeshId;
             }
             _writeMesh(chunkData, part->mesh(), meshName, materialName);
-            _writeMeshAnimation(chunkData, meshName, static_cast<int>(_entities.size() + currentMeshId), static_cast<int>(i));
+            _writeMeshAnimation(chunkData, meshName, static_cast<int>(m_entities.size() + currentMeshId), static_cast<int>(i));
         }
     }
 }
 
 void QFileSaveLoad3DS::_writeTextures(QScrollEngineContext* context, const QString& textureDir)
 {
-    if (!_saveTexture)
+    if (!m_saveTexture)
         return;
     GLint defaultFBOId = 0;
     context->glGetIntegerv(GL_FRAMEBUFFER_BINDING, &defaultFBOId);
@@ -470,23 +471,23 @@ void QFileSaveLoad3DS::_writeTextures(QScrollEngineContext* context, const QStri
     }
     const int maxMemSize = 1024 * 1024 * 4;
     data = new uchar[maxMemSize];
-    for (unsigned int i=0; i<_textureInfo.size(); ++i) {
-        QOpenGLTexture* texture = _textureInfo[i].texture;
+    for (unsigned int i=0; i<m_textureInfo.size(); ++i) {
+        QOpenGLTexture* texture = m_textureInfo[i].texture;
         if ((texture->width() * texture->height() * 4) > maxMemSize) {
-            qDebug() << QString("QScrollEngine: Error. Too big texture - '") + _textureInfo[i].name + "'.";
+            qDebug() << QString("QScrollEngine: Error. Too big texture - '") + m_textureInfo[i].name + "'.";
             continue;
         }
         context->glBindTexture(GL_TEXTURE_2D, texture->textureId());
         context->glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture->textureId(), 0);
         if (context->glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-            qDebug() << QString("QScrollEngine: Error. Failed to use frame buffer for texture - '") + _textureInfo[i].name + "'.";
+            qDebug() << QString("QScrollEngine: Error. Failed to use frame buffer for texture - '") + m_textureInfo[i].name + "'.";
             continue;
         }
-        glReadPixels(0, 0, texture->width(), texture->height(), GL_RGBA, GL_UNSIGNED_BYTE, data);
+        context->glReadPixels(0, 0, texture->width(), texture->height(), GL_RGBA, GL_UNSIGNED_BYTE, data);
         image = QImage(data, texture->width(), texture->height(), QImage::Format_RGBA8888);
-        if (!image.save(textureDir + _textureInfo[i].name)) {
-            qDebug() << QString("QStrollEngine: Error. Failed to save the texture - '") + _textureInfo[i].name +
-                        "' to path - '" + textureDir + _textureInfo[i].name + "'.";
+        if (!image.save(textureDir + m_textureInfo[i].name)) {
+            qDebug() << QString("QStrollEngine: Error. Failed to save the texture - '") + m_textureInfo[i].name +
+                        "' to path - '" + textureDir + m_textureInfo[i].name + "'.";
         }
     }
     delete[] data;

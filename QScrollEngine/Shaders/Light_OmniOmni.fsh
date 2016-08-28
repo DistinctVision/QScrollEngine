@@ -13,7 +13,7 @@ struct OmniLight
 };
 
 uniform vec4 color;
-uniform sampler2D texture0;
+uniform sampler2D texture;
 
 uniform vec4 ambientColor;
 
@@ -26,7 +26,7 @@ varying vec2 texcoord;
 
 void main()
 {
-    vec4 diffuseColor = color * texture2D(texture0, texcoord);
+    vec4 diffuseColor = color * texture2D(texture, texcoord);
     vec3 resultLight = ambientColor.rgb;
     vec3 delta = position - light0.position;
     float distance = max(length(delta), 0.0005);

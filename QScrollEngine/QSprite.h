@@ -2,6 +2,7 @@
 #define QSPRITE_H
 
 #include <QVector3D>
+#include <QSharedPointer>
 
 #include "QScrollEngine/QDrawObject3D.h"
 #include "QScrollEngine/QSceneObject3D.h"
@@ -19,10 +20,6 @@ class QSprite:
         public QSceneObject3D,
         public QShObject3D
 {
-    friend class QScene;
-    friend class QScrollEngineContext;
-    friend class QEntity;
-
 public:
     QSprite(QScene* scene = nullptr);
     QSprite(QEntity* parentEntity);
@@ -31,34 +28,33 @@ public:
     bool setParentEntity_saveTransform(QEntity* entity);
     void setParentScene(QScene* scene);
     void setParentScene_saveTransform(QScene* scene);
-    void setAngle(float angle) { _angle = angle; }
-    void setScale(const QVector2D& scale) { _scale = scale; }
-    void setScale(float scale) { _scale.setX(scale); _scale.setY(scale); }
-    void setScale(float x, float y) { _scale.setX(x); _scale.setY(y); }
-    float angle() const { return _angle; }
-    QVector2D scale() const { return _scale; }
-    bool isAlpha() const { return _isAlpha; }
-    void setAlpha(bool enable) { _isAlpha = enable; }
-    void setPosition(const QVector3D& position) { _position = position; _transformHasChanged = true; }
-    void setPosition(float x, float y, float z) { _position.setX(x); _position.setY(y); _position.setZ(z); _transformHasChanged = true; }
+    void setAngle(float angle) { m_angle = angle; }
+    void setScale(const QVector2D& scale) { m_scale = scale; }
+    void setScale(float scale) { m_scale.setX(scale); m_scale.setY(scale); }
+    void setScale(float x, float y) { m_scale.setX(x); m_scale.setY(y); }
+    float angle() const { return m_angle; }
+    QVector2D scale() const { return m_scale; }
+    bool isAlpha() const { return m_isAlpha; }
+    void setAlpha(bool enable) { m_isAlpha = enable; }
+    void setPosition(const QVector3D& position) { m_position = position; m_transformHasChanged = true; }
+    void setPosition(float x, float y, float z) { m_position.setX(x); m_position.setY(y); m_position.setZ(z); m_transformHasChanged = true; }
     void updateTransform();
-    int index() const { return _index; }
+    int index() const { return m_index; }
 
-    void setShader(QSh* shader)
-    {
-        delete _shader;
-        _shader = shader;
-        _shader->setObject(this);
-    }
     QSprite* copy() const;
 
     void draw(QScrollEngineContext* context) override;
 
 private:
-    int _index;
+    friend class QScene;
+    friend class QScrollEngineContext;
+    friend class QEntity;
 
-    float _angle;
-    QVector2D _scale;
+    int m_index;
+
+    float m_angle;
+    QVector2D m_scale;
+
     void _updateMatrixWorld(const QQuaternion& globalOrientation);
     void _solveTransformFromParent(const QMatrix4x4& parentMatrixWorld);
 };

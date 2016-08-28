@@ -23,20 +23,16 @@ class QEntity;
 
 class QLight: public QSceneObject3D
 {
-    friend class QScene;
-    friend class QScrollEngineContext;
-    friend class QEntity;
-
 public:
-    enum Type
+    enum class Type: int
     {
-        Omni,
-        Spot
+        Omni = 0,
+        Spot = 1
     };
 
 public:
-    QLight(bool isStatic = false);
-    QLight(QScene* scene, bool isStatic = false);
+    QLight(bool isStatic);
+    QLight(QScene* scene = nullptr, bool isStatic = false);
     QLight(QEntity* entity, bool isStatic = false);
     virtual ~QLight();
 
@@ -44,46 +40,50 @@ public:
     void setParentScene_saveTransform(QScene* scene);
     void setParentEntity(QEntity* entity);
     bool setParentEntity_saveTransform(QEntity* entity);
-    void setPosition(const QVector3D& position) { _position = position; _transformHasChanged = true; }
-    void setPosition(float x, float y, float z) { _position.setX(x); _position.setY(y);
-                                                  _position.setZ(z); _transformHasChanged = true; }
+    void setPosition(const QVector3D& position) { m_position = position; m_transformHasChanged = true; }
+    void setPosition(float x, float y, float z) { m_position.setX(x); m_position.setY(y);
+                                                  m_position.setZ(z); m_transformHasChanged = true; }
     bool transformHasChanged() const;
-    Type type() const { return _type; }
-    bool isStatic() const { return _isStatic; }
-    float radius() const { return _radius; }
+    Type type() const { return m_type; }
+    bool isStatic() const { return m_isStatic; }
+    float radius() const { return m_radius; }
     void setRadius(float radius);
-    float lightSoft() const { return _soft; }
-    void setLightSoft(float lightSoft) { _soft = lightSoft; }
-    QColor color() const { return _color; }
-    void setColor(const QColor& color) { _color = color; }
-    QVector4D colorVector() const { return QVector4D(_color.redF(), _color.greenF(), _color.blueF(), _power); }
-    float power() const { return _power; }
-    void setPower(float power) { _power = power; }
+    float lightSoft() const { return m_soft; }
+    void setLightSoft(float lightSoft) { m_soft = lightSoft; }
+    QColor color() const { return m_color; }
+    void setColor(const QColor& color) { m_color = color; }
+    QVector4D colorVector() const { return QVector4D(m_color.redF(), m_color.greenF(), m_color.blueF(), m_power); }
+    float power() const { return m_power; }
+    void setPower(float power) { m_power = power; }
     void solveTransform();
     void updateTransform();
-    int indexParentScene() const { return _index; }
-    int indexParentEntity() const { return _childIndex; }
-    QBoundingBox boundingBox() const { return _boundingBox; }
-    QVector3D centerOfGlobalBoundingBox() const { return _centerOfGlobalBoundingBox; }
+    int indexParentScene() const { return m_index; }
+    int indexParentEntity() const { return m_childIndex; }
+    QBoundingBox boundingBox() const { return m_boundingBox; }
+    QVector3D centerOfGlobalBoundingBox() const { return m_centerOfGlobalBoundingBox; }
 
     virtual float intensityAtPoint(const QVector3D& point) const
     {
-        float distance = (point - _position).length();
-        return (1.0f - distance / _radius) * _color.alphaF();
+        float distance = (point - m_position).length();
+        return (1.0f - distance / m_radius) * m_color.alphaF();
     }
 
 protected:
-    Type _type;
-    bool _isStatic;
-    int _index;
-    int _childIndex;
-    float _radius;
-    float _radiusSquare;
-    float _soft;
-    float _power;
-    QColor _color;
-    QBoundingBox _boundingBox;
-    QVector3D _centerOfGlobalBoundingBox;
+    friend class QScene;
+    friend class QScrollEngineContext;
+    friend class QEntity;
+
+    Type m_type;
+    bool m_isStatic;
+    int m_index;
+    int m_childIndex;
+    float m_radius;
+    float m_radiusSquared;
+    float m_soft;
+    float m_power;
+    QColor m_color;
+    QBoundingBox m_boundingBox;
+    QVector3D m_centerOfGlobalBoundingBox;
 
     void _updateBoundingBox();
     void _updateTransformFromParent(const QMatrix4x4& parentMatrixWorld);

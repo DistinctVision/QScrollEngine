@@ -17,12 +17,11 @@ void main()
     float scale = texelParam.z + 1.0;
     vec4 value = texture2D(screenTexture, v_texcoord) * scale;
     vec2 d = vec2(0.0);
-    while (scale > 0.0)
-    {
+    while (scale > 0.0) {
         d += texelParam.xy;
         scale -= 1.0;
         value += (texture2D(screenTexture, v_texcoord - d) +
-                texture2D(screenTexture, v_texcoord + d)) * scale;
+                  texture2D(screenTexture, v_texcoord + d)) * scale;
     }
     gl_FragColor = value * invTotalScale;
 }

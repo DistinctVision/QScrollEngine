@@ -17,8 +17,6 @@ class QSceneObject3D:
         public QObject
 {
     Q_OBJECT
-    friend class QScrollEngineContext;
-    friend class QScene;
 
 public:
     typedef struct MatrixOfObject
@@ -28,36 +26,40 @@ public:
     } MatrixOfObject;
 
 public:
-    QSceneObject3D() { _transformHasChanged = true; }
-    ~QSceneObject3D() { emit deleting(); }
-    QEntity* parentEntity() const { return _parentEntity; }
-    QMatrix4x4 matrixWorld() const { return _matrix.world; }
-    QMatrix4x4 matrixWorldViewProj() const { return _matrix.worldViewProj; }
-    void updateMatrxWorldViewProj(const QMatrix4x4& matrixViewProj) { _matrix.worldViewProj =
-                matrixViewProj * _matrix.world; }
+    QSceneObject3D() { m_transformHasChanged = true; }
+    ~QSceneObject3D() { emit onDelete(this); }
+    QEntity* parentEntity() const { return m_parentEntity; }
+    QMatrix4x4 matrixWorld() const { return m_matrix.world; }
+    QMatrix4x4 matrixWorldViewProj() const { return m_matrix.worldViewProj; }
+    void updateMatrxWorldViewProj(const QMatrix4x4& matrixViewProj) { m_matrix.worldViewProj =
+                matrixViewProj * m_matrix.world; }
 
-    QScene* scene() const { return _scene; }
-    QVector3D position() const { return _position; }
-    QVector3D globalPosition() const { return _globalPosition; }
-    bool transformHasChanged() const { return _transformHasChanged; }
+    QScene* scene() const { return m_scene; }
+    QVector3D position() const { return m_position; }
+    QVector3D globalPosition() const { return m_globalPosition; }
+    bool transformHasChanged() const { return m_transformHasChanged; }
     bool getGlobalParameters(QVector3D& globalScale, QMatrix3x3& globalOrieantion) const;
     bool getGlobalParameters(QVector3D& globalScale, QQuaternion& globalOrieantion) const;
     QVector3D fromLocalToGlobal(const QVector3D& localPoint) const;
     QScrollEngineContext* parentContext();
 
 signals:
-    void deleting();
+    void onDelete(QSceneObject3D* object);
+    void onSceneUpdate();
 
 public slots:
-    void setChangedTransform() { _transformHasChanged = true; }
+    void setChangedTransform() { m_transformHasChanged = true; }
 
 protected:
-    QEntity* _parentEntity;
-    MatrixOfObject _matrix;
-    QScene* _scene;
-    QVector3D _position;
-    QVector3D _globalPosition;
-    bool _transformHasChanged;
+    friend class QScrollEngineContext;
+    friend class QScene;
+
+    QEntity* m_parentEntity;
+    MatrixOfObject m_matrix;
+    QScene* m_scene;
+    QVector3D m_position;
+    QVector3D m_globalPosition;
+    bool m_transformHasChanged;
 };
 
 }

@@ -6,7 +6,7 @@
 namespace QScrollEngine {
 
 //marching cubes table data
-int QIsoSurface::_edgeTable[256] = {
+int QIsoSurface::m_edgeTable[256] = {
 0x0,   0x109, 0x203, 0x30a, 0x406, 0x50f, 0x605, 0x70c,
 0x80c, 0x905, 0xa0f, 0xb06, 0xc0a, 0xd03, 0xe09, 0xf00,
 0x190, 0x99 , 0x393, 0x29a, 0x596, 0x49f, 0x795, 0x69c,
@@ -40,7 +40,7 @@ int QIsoSurface::_edgeTable[256] = {
 0xf00, 0xe09, 0xd03, 0xc0a, 0xb06, 0xa0f, 0x905, 0x80c,
 0x70c, 0x605, 0x50f, 0x406, 0x30a, 0x203, 0x109, 0x0   };
 
-signed char QIsoSurface::_triangleTable[256][16] =
+signed char QIsoSurface::m_triangleTable[256][16] =
 {{-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
 {0, 8, 3, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
 {0, 1, 9, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
@@ -300,57 +300,82 @@ signed char QIsoSurface::_triangleTable[256][16] =
 
 QIsoSurface::QIsoSurface()
 {
-    _epsilon = 0.003f;
-    _scalarField = nullptr;
-    _end = QVector3D(1.0f, 1.0f, 1.0f);
-    _start = - _end;
-    _tValue = 0.0f;
-    _cellSize = 0.1f;
+    m_epsilon = 0.003f;
+    m_end = QVector3D(1.0f, 1.0f, 1.0f);
+    m_start = - m_end;
+    m_tValue = 0.0f;
+    m_cellSize = 0.1f;
 }
 
 QIsoSurface::~QIsoSurface()
 {
 }
 
-void QIsoSurface::isoApproximate(QMesh* mesh)
+void QIsoSurface::isoApproximate(QMesh* mesh, ScalarField* scalarField, bool normals)
 {
-    std::vector<QVector3D> vertices;
-    std::vector<QVector2D> textureCoords;
-    std::vector<QVector3D> normals;
-    std::vector<GLuint> triangles;
-    isoApproximate(vertices, normals, triangles);
-    textureCoords.resize(vertices.size(), QVector2D(0.0f, 0.0f));
-    mesh->setEnable_vertex_normal(true);
-    mesh->swapDataOfVertices(vertices, textureCoords, normals);
-    mesh->swapDataOfTriangles(triangles);
-    mesh->applyChanges();
-    mesh->updateLocalBoundingBox();
+    mesh->setSizeOfELement(3);
+    if (normals) {
+        mesh->enableVertexAttribute(QSh::VertexAttributes::Normals);
+        isoApproximate(mesh->vertices(), mesh->normals(), mesh->elements(), scalarField);
+    } else {
+        isoApproximate(mesh->vertices(), mesh->elements(), scalarField);
+    }
 }
 
-void QIsoSurface::isoApproximate(std::vector<QVector3D>& vertices, std::vector<QVector3D>& normals, std::vector<GLuint> &triangles)
+void QIsoSurface::isoApproximate(std::vector<QVector3D>& vertices, std::vector<GLuint>& triangles,
+                                 ScalarField* scalarField)
 {
-    assert(_scalarField != nullptr);
-    _diff = _end - _start;
-    assert((_diff.x() > 0.0f) && (_diff.y() > 0.0f) && (_diff.z() > 0.0f) && (_cellSize > FLT_EPSILON));
-    _countX = (unsigned int)std::ceil(_diff.x() / _cellSize);
-    _countY = (unsigned int)std::ceil(_diff.y() / _cellSize);
-    _countZ = (unsigned int)std::ceil(_diff.z() / _cellSize);
+    m_diff = m_end - m_start;
+    assert((m_diff.x() > 0.0f) && (m_diff.y() > 0.0f) && (m_diff.z() > 0.0f) && (m_cellSize > std::numeric_limits<float>::epsilon()));
+    m_countX = (unsigned int)std::floor(m_diff.x() / m_cellSize) + 1;
+    m_countY = (unsigned int)std::floor(m_diff.y() / m_cellSize) + 1;
+    m_countZ = (unsigned int)std::floor(m_diff.z() / m_cellSize) + 1;
+
+    emit updateProgress(0.0f);
+
+    vertices.resize(0);
+    triangles.resize(0);
+    if ((m_countX > 0) && (m_countY > 0) && (m_countZ > 0)) {
+        float* topGrid = new float[m_countX * m_countY];
+        float* bottomGrid = new float[m_countX * m_countY];
+
+        _fillGrid(scalarField, topGrid, 0);
+        for(unsigned int z = 1; z < m_countZ; ++z) {
+            _fillGrid(scalarField, bottomGrid, z);
+            _polygonizeGrids(vertices, triangles, topGrid, bottomGrid, z);
+            std::swap(topGrid, bottomGrid);
+            emit updateProgress((z / static_cast<float>(m_countZ)));
+        }
+
+        delete[] topGrid;
+        delete[] bottomGrid;
+    }
+}
+
+void QIsoSurface::isoApproximate(std::vector<QVector3D>& vertices, std::vector<QVector3D>& normals, std::vector<GLuint>& triangles,
+                                 ScalarField* scalarField)
+{
+    m_diff = m_end - m_start;
+    assert((m_diff.x() > 0.0f) && (m_diff.y() > 0.0f) && (m_diff.z() > 0.0f) && (m_cellSize > std::numeric_limits<float>::epsilon()));
+    m_countX = (unsigned int)std::floor(m_diff.x() / m_cellSize) + 1;
+    m_countY = (unsigned int)std::floor(m_diff.y() / m_cellSize) + 1;
+    m_countZ = (unsigned int)std::floor(m_diff.z() / m_cellSize) + 1;
 
     emit updateProgress(0.0f);
 
     vertices.resize(0);
     normals.resize(0);
     triangles.resize(0);
-    if ((_countX > 0) && (_countY > 0) && (_countZ > 0)) {
-        float* topGrid = new float[_countX * _countY];
-        float* bottomGrid = new float[_countX * _countY];
+    if ((m_countX > 0) && (m_countY > 0) && (m_countZ > 0)) {
+        float* topGrid = new float[m_countX * m_countY];
+        float* bottomGrid = new float[m_countX * m_countY];
 
-        _fillGrid(topGrid, 0);
-        for(unsigned int z = 1; z < _countZ - 1; ++z) {
-            _fillGrid(bottomGrid, z);
+        _fillGrid(scalarField, topGrid, 0);
+        for(unsigned int z = 1; z < m_countZ; ++z) {
+            _fillGrid(scalarField, bottomGrid, z);
             _polygonizeGrids(vertices, triangles, topGrid, bottomGrid, z);
             std::swap(topGrid, bottomGrid);
-            emit updateProgress((z / static_cast<float>(_countZ)) * 0.9f);
+            emit updateProgress((z / static_cast<float>(m_countZ)) * 0.9f);
         }
 
         delete[] topGrid;
@@ -358,31 +383,132 @@ void QIsoSurface::isoApproximate(std::vector<QVector3D>& vertices, std::vector<Q
 
         normals.resize(vertices.size());
         for (unsigned int i=0; i<vertices.size(); ++i) {
-            normals[i] = _calcGradient(vertices[i]);
+            normals[i] = _calcGradient(scalarField, vertices[i]);
+            emit updateProgress(0.9f + (i / static_cast<float>(vertices.size())) * 0.1f);
+        }
+    }
+}
+
+void QIsoSurface::isoApproximate(QMesh* mesh, const std::function<float(const QVector3D& point)>& scalarField, bool normals)
+{
+    mesh->setSizeOfELement(3);
+    if (normals) {
+        mesh->enableVertexAttribute(QSh::VertexAttributes::Normals);
+        isoApproximate(mesh->vertices(), mesh->normals(), mesh->elements(), scalarField);
+    } else {
+        isoApproximate(mesh->vertices(), mesh->elements(), scalarField);
+    }
+}
+
+void QIsoSurface::isoApproximate(std::vector<QVector3D>& vertices, std::vector<QVector3D>& normals, std::vector<GLuint>& triangles,
+                                 const std::function<float(const QVector3D& point)>& scalarField)
+{
+    m_diff = m_end - m_start;
+    assert((m_diff.x() > 0.0f) && (m_diff.y() > 0.0f) && (m_diff.z() > 0.0f) && (m_cellSize > std::numeric_limits<float>::epsilon()));
+    m_countX = (unsigned int)std::floor(m_diff.x() / m_cellSize) + 1;
+    m_countY = (unsigned int)std::floor(m_diff.y() / m_cellSize) + 1;
+    m_countZ = (unsigned int)std::floor(m_diff.z() / m_cellSize) + 1;
+
+    emit updateProgress(0.0f);
+
+    vertices.resize(0);
+    normals.resize(0);
+    triangles.resize(0);
+    if ((m_countX > 0) && (m_countY > 0) && (m_countZ > 0)) {
+        float* topGrid = new float[m_countX * m_countY];
+        float* bottomGrid = new float[m_countX * m_countY];
+
+        _fillGrid(scalarField, topGrid, 0);
+        for(unsigned int z = 1; z < m_countZ; ++z) {
+            _fillGrid(scalarField, bottomGrid, z);
+            _polygonizeGrids(vertices, triangles, topGrid, bottomGrid, z);
+            std::swap(topGrid, bottomGrid);
+            emit updateProgress((z / static_cast<float>(m_countZ)) * 0.9f);
+        }
+
+        delete[] topGrid;
+        delete[] bottomGrid;
+
+        normals.resize(vertices.size());
+        for (unsigned int i=0; i<vertices.size(); ++i) {
+            normals[i] = _calcGradient(scalarField, vertices[i]);
             emit updateProgress(0.9f + (i / static_cast<float>(vertices.size())) * 0.1f);
         }
     }
     emit updateProgress(1.0f);
 }
 
-QVector3D QIsoSurface::_calcGradient(const QVector3D& point)
+void QIsoSurface::isoApproximate(std::vector<QVector3D>& vertices, std::vector<GLuint>& triangles,
+                                 const std::function<float(const QVector3D& point)>& scalarField)
 {
-    float value = _scalarField->value(point);
-    QVector3D normal(( _scalarField->value(QVector3D(point.x() + _epsilon, point.y(), point.z()))) - value,
-                     (_scalarField->value(QVector3D(point.x(), point.y() + _epsilon, point.z()))) - value,
-                     (_scalarField->value(QVector3D(point.x(), point.y(), point.z() + _epsilon))) - value);
+    m_diff = m_end - m_start;
+    assert((m_diff.x() > 0.0f) && (m_diff.y() > 0.0f) && (m_diff.z() > 0.0f) && (m_cellSize > std::numeric_limits<float>::epsilon()));
+    m_countX = (unsigned int)std::floor(m_diff.x() / m_cellSize) + 1;
+    m_countY = (unsigned int)std::floor(m_diff.y() / m_cellSize) + 1;
+    m_countZ = (unsigned int)std::floor(m_diff.z() / m_cellSize) + 1;
+
+    emit updateProgress(0.0f);
+
+    vertices.resize(0);
+    triangles.resize(0);
+    if ((m_countX > 0) && (m_countY > 0) && (m_countZ > 0)) {
+        float* topGrid = new float[m_countX * m_countY];
+        float* bottomGrid = new float[m_countX * m_countY];
+
+        _fillGrid(scalarField, topGrid, 0);
+        for(unsigned int z = 1; z < m_countZ; ++z) {
+            _fillGrid(scalarField, bottomGrid, z);
+            _polygonizeGrids(vertices, triangles, topGrid, bottomGrid, z);
+            std::swap(topGrid, bottomGrid);
+            emit updateProgress((z / static_cast<float>(m_countZ)));
+        }
+
+        delete[] topGrid;
+        delete[] bottomGrid;
+    }
+    emit updateProgress(1.0f);
+}
+
+QVector3D QIsoSurface::_calcGradient(ScalarField* scalarField, const QVector3D& point)
+{
+    float value = scalarField->value(point);
+    QVector3D normal((scalarField->value(QVector3D(point.x() + m_epsilon, point.y(), point.z()))) - value,
+                     (scalarField->value(QVector3D(point.x(), point.y() + m_epsilon, point.z()))) - value,
+                     (scalarField->value(QVector3D(point.x(), point.y(), point.z() + m_epsilon))) - value);
     normal.normalize();
     return normal;
 }
 
 
-void QIsoSurface::_fillGrid(float* grid, int z)
+void QIsoSurface::_fillGrid(ScalarField* scalarField, float* grid, int z)
 {
-    float Z = _start.z() + _cellSize * (z + 1);
-    for(unsigned int x = 0; x < _countX; ++x) {
-        for(unsigned int y = 0; y < _countY; ++y) {
-            QVector3D point(_start.x() + _cellSize * x, _start.y() + _cellSize * y, Z);
-            grid[x * _countY + y] = _scalarField->value(point);
+    float Z = m_start.z() + m_cellSize * (z + 1);
+    for(unsigned int x = 0; x < m_countX; ++x) {
+        for(unsigned int y = 0; y < m_countY; ++y) {
+            QVector3D point(m_start.x() + m_cellSize * x, m_start.y() + m_cellSize * y, Z);
+            grid[x * m_countY + y] = scalarField->value(point);
+        }
+    }
+}
+
+QVector3D QIsoSurface::_calcGradient(const std::function<float(const QVector3D& point)>& scalarField, const QVector3D& point)
+{
+    float value = scalarField(point);
+    QVector3D normal((scalarField(QVector3D(point.x() + m_epsilon, point.y(), point.z()))) - value,
+                     (scalarField(QVector3D(point.x(), point.y() + m_epsilon, point.z()))) - value,
+                     (scalarField(QVector3D(point.x(), point.y(), point.z() + m_epsilon))) - value);
+    normal.normalize();
+    return normal;
+}
+
+
+void QIsoSurface::_fillGrid(const std::function<float(const QVector3D& point)>& scalarField, float* grid, int z)
+{
+    float Z = m_start.z() + m_cellSize * (z + 1);
+    for(unsigned int x = 0; x < m_countX; ++x) {
+        for(unsigned int y = 0; y < m_countY; ++y) {
+            QVector3D point(m_start.x() + m_cellSize * x, m_start.y() + m_cellSize * y, Z);
+            grid[x * m_countY + y] = scalarField(point);
         }
     }
 }
@@ -391,27 +517,27 @@ void QIsoSurface::_polygonizeGrids(std::vector<QVector3D>& vertices, std::vector
                                    float* topVals, float* bottomVals, int z)
 {
     GridCell c;
-    for(unsigned int x = 0; x < _countX - 1; ++x) {
-        for(unsigned int y = 0; y < _countY - 1; ++y) {
-            c.vertices[0] = QVector3D(_start.x() + _cellSize * (x+0), _start.y() + _cellSize * (y+0), _start.z() + _cellSize * (z+0));
-            c.vertices[1] = QVector3D(_start.x() + _cellSize * (x+1), _start.y() + _cellSize * (y+0), _start.z() + _cellSize * (z+0));
-            c.vertices[2] = QVector3D(_start.x() + _cellSize * (x+1), _start.y() + _cellSize * (y+1), _start.z() + _cellSize * (z+0));
-            c.vertices[3] = QVector3D(_start.x() + _cellSize * (x+0), _start.y() + _cellSize * (y+1), _start.z() + _cellSize * (z+0));
+    for(unsigned int x = 0; x < m_countX - 1; ++x) {
+        for(unsigned int y = 0; y < m_countY - 1; ++y) {
+            c.vertices[0] = QVector3D(m_start.x() + m_cellSize * (x+0), m_start.y() + m_cellSize * (y+0), m_start.z() + m_cellSize * (z+0));
+            c.vertices[1] = QVector3D(m_start.x() + m_cellSize * (x+1), m_start.y() + m_cellSize * (y+0), m_start.z() + m_cellSize * (z+0));
+            c.vertices[2] = QVector3D(m_start.x() + m_cellSize * (x+1), m_start.y() + m_cellSize * (y+1), m_start.z() + m_cellSize * (z+0));
+            c.vertices[3] = QVector3D(m_start.x() + m_cellSize * (x+0), m_start.y() + m_cellSize * (y+1), m_start.z() + m_cellSize * (z+0));
 
-            c.values[0] = topVals[x*_countY+y];
-            c.values[1] = topVals[(x+1)*_countY+y];
-            c.values[2] = topVals[(x+1)*_countY+y+1];
-            c.values[3] = topVals[x*_countY+y+1];
+            c.values[0] = topVals[x*m_countY+y];
+            c.values[1] = topVals[(x+1)*m_countY+y];
+            c.values[2] = topVals[(x+1)*m_countY+y+1];
+            c.values[3] = topVals[x*m_countY+y+1];
 
-            c.vertices[4] = QVector3D(_start.x() + _cellSize * (x+0), _start.y() + _cellSize * (y+0), _start.z() + _cellSize * (z+1));
-            c.vertices[5] = QVector3D(_start.x() + _cellSize * (x+1), _start.y() + _cellSize * (y+0), _start.z() + _cellSize * (z+1));
-            c.vertices[6] = QVector3D(_start.x() + _cellSize * (x+1), _start.y() + _cellSize * (y+1), _start.z() + _cellSize * (z+1));
-            c.vertices[7] = QVector3D(_start.x() + _cellSize * (x+0), _start.y() + _cellSize * (y+1), _start.z() + _cellSize * (z+1));
+            c.vertices[4] = QVector3D(m_start.x() + m_cellSize * (x+0), m_start.y() + m_cellSize * (y+0), m_start.z() + m_cellSize * (z+1));
+            c.vertices[5] = QVector3D(m_start.x() + m_cellSize * (x+1), m_start.y() + m_cellSize * (y+0), m_start.z() + m_cellSize * (z+1));
+            c.vertices[6] = QVector3D(m_start.x() + m_cellSize * (x+1), m_start.y() + m_cellSize * (y+1), m_start.z() + m_cellSize * (z+1));
+            c.vertices[7] = QVector3D(m_start.x() + m_cellSize * (x+0), m_start.y() + m_cellSize * (y+1), m_start.z() + m_cellSize * (z+1));
 
-            c.values[4] = bottomVals[x*_countY+y];
-            c.values[5] = bottomVals[(x+1)*_countY+y];
-            c.values[6] = bottomVals[(x+1)*_countY+y+1];
-            c.values[7] = bottomVals[x*_countY+y+1];
+            c.values[4] = bottomVals[x*m_countY+y];
+            c.values[5] = bottomVals[(x+1)*m_countY+y];
+            c.values[6] = bottomVals[(x+1)*m_countY+y+1];
+            c.values[7] = bottomVals[x*m_countY+y+1];
 
             bool valid = true;
             for(unsigned int vertexIndex = 0; vertexIndex < 8; ++vertexIndex) {
@@ -431,47 +557,47 @@ void QIsoSurface::_marchingCube(std::vector<QVector3D>& vertices, std::vector<GL
     //Determine the index into the edge table which
     //tells us which vertices are inside of the surface
     int cubeIndex = 0;
-    if (cell.values[0] < _tValue) cubeIndex |= 1;
-    if (cell.values[1] < _tValue) cubeIndex |= 2;
-    if (cell.values[2] < _tValue) cubeIndex |= 4;
-    if (cell.values[3] < _tValue) cubeIndex |= 8;
-    if (cell.values[4] < _tValue) cubeIndex |= 16;
-    if (cell.values[5] < _tValue) cubeIndex |= 32;
-    if (cell.values[6] < _tValue) cubeIndex |= 64;
-    if (cell.values[7] < _tValue) cubeIndex |= 128;
+    if (cell.values[0] < m_tValue) cubeIndex |= 1;
+    if (cell.values[1] < m_tValue) cubeIndex |= 2;
+    if (cell.values[2] < m_tValue) cubeIndex |= 4;
+    if (cell.values[3] < m_tValue) cubeIndex |= 8;
+    if (cell.values[4] < m_tValue) cubeIndex |= 16;
+    if (cell.values[5] < m_tValue) cubeIndex |= 32;
+    if (cell.values[6] < m_tValue) cubeIndex |= 64;
+    if (cell.values[7] < m_tValue) cubeIndex |= 128;
 
     //Cube is entirely in/out of the surface
-    if (_edgeTable[cubeIndex] == 0)
+    if (m_edgeTable[cubeIndex] == 0)
         return;
 
     QVector3D vertexList[12];
     unsigned int localRemap[12];
 
     //Find the vertices where the surface intersects the cube
-    if (_edgeTable[cubeIndex] & 1)
-        vertexList[0] = _vertexInterpolate(cell.vertices[0], cell.vertices[1], cell.values[0], cell.values[1], _tValue);
-    if (_edgeTable[cubeIndex] & 2)
-        vertexList[1] = _vertexInterpolate(cell.vertices[1], cell.vertices[2], cell.values[1], cell.values[2], _tValue);
-    if (_edgeTable[cubeIndex] & 4)
-        vertexList[2] = _vertexInterpolate(cell.vertices[2], cell.vertices[3], cell.values[2], cell.values[3], _tValue);
-    if (_edgeTable[cubeIndex] & 8)
-        vertexList[3] = _vertexInterpolate(cell.vertices[3], cell.vertices[0], cell.values[3], cell.values[0], _tValue);
-    if (_edgeTable[cubeIndex] & 16)
-        vertexList[4] = _vertexInterpolate(cell.vertices[4], cell.vertices[5], cell.values[4], cell.values[5], _tValue);
-    if (_edgeTable[cubeIndex] & 32)
-        vertexList[5] = _vertexInterpolate(cell.vertices[5], cell.vertices[6], cell.values[5], cell.values[6], _tValue);
-    if (_edgeTable[cubeIndex] & 64)
-        vertexList[6] = _vertexInterpolate(cell.vertices[6], cell.vertices[7], cell.values[6], cell.values[7], _tValue);
-    if (_edgeTable[cubeIndex] & 128)
-        vertexList[7] = _vertexInterpolate(cell.vertices[7], cell.vertices[4], cell.values[7], cell.values[4], _tValue);
-    if (_edgeTable[cubeIndex] & 256)
-        vertexList[8] = _vertexInterpolate(cell.vertices[0], cell.vertices[4], cell.values[0], cell.values[4], _tValue);
-    if (_edgeTable[cubeIndex] & 512)
-        vertexList[9] = _vertexInterpolate(cell.vertices[1], cell.vertices[5], cell.values[1], cell.values[5], _tValue);
-    if (_edgeTable[cubeIndex] & 1024)
-        vertexList[10] = _vertexInterpolate(cell.vertices[2], cell.vertices[6], cell.values[2], cell.values[6], _tValue);
-    if (_edgeTable[cubeIndex] & 2048)
-        vertexList[11] = _vertexInterpolate(cell.vertices[3], cell.vertices[7], cell.values[3], cell.values[7], _tValue);
+    if (m_edgeTable[cubeIndex] & 1)
+        vertexList[0] = _vertexInterpolate(cell.vertices[0], cell.vertices[1], cell.values[0], cell.values[1], m_tValue);
+    if (m_edgeTable[cubeIndex] & 2)
+        vertexList[1] = _vertexInterpolate(cell.vertices[1], cell.vertices[2], cell.values[1], cell.values[2], m_tValue);
+    if (m_edgeTable[cubeIndex] & 4)
+        vertexList[2] = _vertexInterpolate(cell.vertices[2], cell.vertices[3], cell.values[2], cell.values[3], m_tValue);
+    if (m_edgeTable[cubeIndex] & 8)
+        vertexList[3] = _vertexInterpolate(cell.vertices[3], cell.vertices[0], cell.values[3], cell.values[0], m_tValue);
+    if (m_edgeTable[cubeIndex] & 16)
+        vertexList[4] = _vertexInterpolate(cell.vertices[4], cell.vertices[5], cell.values[4], cell.values[5], m_tValue);
+    if (m_edgeTable[cubeIndex] & 32)
+        vertexList[5] = _vertexInterpolate(cell.vertices[5], cell.vertices[6], cell.values[5], cell.values[6], m_tValue);
+    if (m_edgeTable[cubeIndex] & 64)
+        vertexList[6] = _vertexInterpolate(cell.vertices[6], cell.vertices[7], cell.values[6], cell.values[7], m_tValue);
+    if (m_edgeTable[cubeIndex] & 128)
+        vertexList[7] = _vertexInterpolate(cell.vertices[7], cell.vertices[4], cell.values[7], cell.values[4], m_tValue);
+    if (m_edgeTable[cubeIndex] & 256)
+        vertexList[8] = _vertexInterpolate(cell.vertices[0], cell.vertices[4], cell.values[0], cell.values[4], m_tValue);
+    if (m_edgeTable[cubeIndex] & 512)
+        vertexList[9] = _vertexInterpolate(cell.vertices[1], cell.vertices[5], cell.values[1], cell.values[5], m_tValue);
+    if (m_edgeTable[cubeIndex] & 1024)
+        vertexList[10] = _vertexInterpolate(cell.vertices[2], cell.vertices[6], cell.values[2], cell.values[6], m_tValue);
+    if (m_edgeTable[cubeIndex] & 2048)
+        vertexList[11] = _vertexInterpolate(cell.vertices[3], cell.vertices[7], cell.values[3], cell.values[7], m_tValue);
 
     unsigned int indexVertexShift = vertices.size();
     vertices.resize(vertices.size() + 12);
@@ -481,25 +607,25 @@ void QIsoSurface::_marchingCube(std::vector<QVector3D>& vertices, std::vector<GL
     for (i=0;i<12;i++)
         localRemap[i] = std::numeric_limits<unsigned int>::max();
 
-    for (i=0; _triangleTable[cubeIndex][i]!=-1; ++i) {
+    for (i=0; m_triangleTable[cubeIndex][i]!=-1; ++i) {
         if (i >= 16) {
             i = 0;
         }
-        if(localRemap[_triangleTable[cubeIndex][i]] == std::numeric_limits<unsigned int>::max()) {
+        if(localRemap[m_triangleTable[cubeIndex][i]] == std::numeric_limits<unsigned int>::max()) {
             int index = indexVertexShift + newVertexCount;
-            vertices[index] = vertexList[_triangleTable[cubeIndex][i]];
-            localRemap[_triangleTable[cubeIndex][i]] = index;
+            vertices[index] = vertexList[m_triangleTable[cubeIndex][i]];
+            localRemap[m_triangleTable[cubeIndex][i]] = index;
             ++newVertexCount;
         }
     }
     vertices.resize(indexVertexShift + newVertexCount);
 
-    for (unsigned int i=0; _triangleTable[cubeIndex][i]!=-1; ) {
-        triangles.push_back(localRemap[_triangleTable[cubeIndex][i]]);
+    for (unsigned int i=0; m_triangleTable[cubeIndex][i]!=-1; ) {
+        triangles.push_back(localRemap[m_triangleTable[cubeIndex][i]]);
         ++i;
-        triangles.push_back(localRemap[_triangleTable[cubeIndex][i]]);
+        triangles.push_back(localRemap[m_triangleTable[cubeIndex][i]]);
         ++i;
-        triangles.push_back(localRemap[_triangleTable[cubeIndex][i]]);
+        triangles.push_back(localRemap[m_triangleTable[cubeIndex][i]]);
         ++i;
     }
 }

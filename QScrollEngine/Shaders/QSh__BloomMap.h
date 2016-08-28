@@ -11,51 +11,70 @@ namespace QScrollEngine {
 
 class QSh__BloomMap: public QSh
 {
-public:   
-    static int locationMatrixWVP;
-    static int locationScreenTexture;
-    static int locationThreshold;
-    static int locationGain;
-
-private:
-    float _threshold;
-    float _gain;
-    QMatrix4x4 _finalMatrix;
-
 public:
     QSh__BloomMap()
     {
-        _currentIndexType = -1;
-        _subIndexType = 0;
-        _threshold = 0.7f;
-        _gain = 2.0f;
+        m_currentTypeIndex = -1;
+        m_subTypeIndex = 0;
+        m_threshold = 0.6f;
+        m_gain = 2.0f;
     }
 
-    QMatrix4x4 finalMatrix() const { return _finalMatrix; }
-    void setFinalMatrix(const QMatrix4x4& finalMatrix) { _finalMatrix = finalMatrix; }
+    QMatrix4x4 finalMatrix() const { return m_finalMatrix; }
+    void setFinalMatrix(const QMatrix4x4& finalMatrix) { m_finalMatrix = finalMatrix; }
 
-    float threshold() const { return _threshold; }
-    void setThreshold(float threshold) { _threshold = threshold; }
-    float gain() const { return _gain; }
-    void setGain(float gain) { _gain = gain; }
+    float threshold() const { return m_threshold; }
+    void setThreshold(float threshold) { m_threshold = threshold; }
+    float gain() const { return m_gain; }
+    void setGain(float gain) { m_gain = gain; }
 
     void bindScreenTexture(QScrollEngineContext* parentContext, GLuint screenTexture);
 
-    int indexType() const override { return -1; }
-
-    bool use(QScrollEngineContext* , QOpenGLShaderProgram* program) override;
-    void load(QScrollEngineContext* context, std::vector<QSharedPointer<QOpenGLShaderProgram>>& shaders);
     QSh__BloomMap(const QSh__BloomMap* s)
     {
-        _currentIndexType = -1;
-        _subIndexType = 0;
-        _threshold = s->threshold();
-        _gain = s->gain();
+        m_currentTypeIndex = -1;
+        m_subTypeIndex = 0;
+        m_threshold = s->threshold();
+        m_gain = s->gain();
     }
-    QSh* copy() const override
+    QShPtr copy() const override
     {
-        return new QSh__BloomMap(this);
+        return QShPtr(new QSh__BloomMap(this));
     }
+
+    int typeIndex() const override { return -1; }
+    bool use(QScrollEngineContext* , QOpenGLShaderProgram* program, const QDrawObject3D* ) override;
+    void load(QScrollEngineContext* context, std::vector<QSharedPointer<QOpenGLShaderProgram>>& shaders);
+    std::vector<VertexAttributes> attributes() const override
+    {
+        std::vector<VertexAttributes> attrs;
+        attrs.push_back(VertexAttributes::TextureCoords);
+        return attrs;
+    }
+
+private:
+    float m_threshold;
+    float m_gain;
+    QMatrix4x4 m_finalMatrix;
+
+public:
+    class UniformLocation
+    {
+    public:
+        void bindParameters(QOpenGLShaderProgram* program, const QSh__BloomMap* shader) const;
+        void loadLocations(QOpenGLShaderProgram* shader);
+
+    protected:
+        int matrixWVP;
+        int screenTexture;
+        int threshold;
+        int gain;
+    };
+
+    static const UniformLocation& getLocations() { return m_locations; }
+
+private:
+    static UniformLocation m_locations;
 };
 
 }

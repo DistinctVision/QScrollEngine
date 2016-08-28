@@ -12,27 +12,16 @@ class QSh_Refraction_FallOff:
         public QSh
 {
 public:
-    static int locationMatrixWVP;
-    static int locationMatrixW;
-    static int locationMatrixScreenTexture;
-    static int locationWorldCameraPosition;
-    static int locationScreenTexture;
-    static int locationRefract;
-    static int locationFallOffColor;
-    static int locationFallOffIntensity;
-    static int locationFallOffSoft;
-
-public:
     QSh_Refraction_FallOff()
     {
 
-        _currentIndexType = Refraction_FallOff;
-        _subIndexType = 0;
-        _screenTexture = 0;
-        _refract = 0.07f;
-        _fallOffColor = QColor(0, 155, 255, 255);
-        _fallOffInt = 1.0f;
-        _fallOffSoft = 1.0f;
+        m_currentTypeIndex = static_cast<int>(Type::Refraction_FallOff);
+        m_subTypeIndex = 0;
+        m_screenTexture = 0;
+        m_refract = 0.07f;
+        m_fallOffColor = QColor(0, 155, 255, 255);
+        m_fallOffInt = 1.0f;
+        m_fallOffSoft = 1.0f;
     }
     QSh_Refraction_FallOff(GLint screenTexture, float refract = 0.7f,
                            const QColor& fallOffColor = QColor(0, 155, 255, 255),
@@ -40,55 +29,90 @@ public:
                            float fallOffSoft = 1.0f,
                            const QMatrix2x2& matrixScreenTexture = QMatrix2x2())
     {
-        _currentIndexType = Refraction_FallOff;
-        _subIndexType = 0;
-        _screenTexture = screenTexture;
-        _refract = refract;
-        _fallOffColor = fallOffColor;
-        _fallOffInt = fallOffIntensity;
-        _fallOffSoft = fallOffSoft;
-        _matrixScreenTexture = matrixScreenTexture;
+        m_currentTypeIndex = static_cast<int>(Type::Refraction_FallOff);
+        m_subTypeIndex = 0;
+        m_screenTexture = screenTexture;
+        m_refract = refract;
+        m_fallOffColor = fallOffColor;
+        m_fallOffInt = fallOffIntensity;
+        m_fallOffSoft = fallOffSoft;
+        m_matrixScreenTexture = matrixScreenTexture;
     }
 
-    GLuint screenTexture() const { return _screenTexture; }
-    void setScreenTexture(GLuint texture) { _screenTexture = texture; }
-    float refract() const { return _refract; }
-    void setRefract(float refract) { _refract = refract; }
-    QColor fallOffColor() const { return _fallOffColor; }
-    void setFallOffColor(const QColor& color) { _fallOffColor = color; }
-    float fallOffIntensity() const { return _fallOffInt; }
-    void setFallOffIntensity(float intensity) { _fallOffInt = intensity; }
-    float fallOffSoft() const { return _fallOffSoft; }
-    void setFallOffSoft(float soft) { _fallOffSoft = soft; }
-    QMatrix2x2 matrixScreenTexture() const { return _matrixScreenTexture; }
-    void setMatrixScreenTexture(const QMatrix2x2& matrix) { _matrixScreenTexture = matrix; }
+    GLuint screenTexture() const { return m_screenTexture; }
+    void setScreenTexture(GLuint texture) { m_screenTexture = texture; }
+    float refract() const { return m_refract; }
+    void setRefract(float refract) { m_refract = refract; }
+    QColor fallOffColor() const { return m_fallOffColor; }
+    void setFallOffColor(const QColor& color) { m_fallOffColor = color; }
+    float fallOffIntensity() const { return m_fallOffInt; }
+    void setFallOffIntensity(float intensity) { m_fallOffInt = intensity; }
+    float fallOffSoft() const { return m_fallOffSoft; }
+    void setFallOffSoft(float soft) { m_fallOffSoft = soft; }
+    QMatrix2x2 matrixScreenTexture() const { return m_matrixScreenTexture; }
+    void setMatrixScreenTexture(const QMatrix2x2& matrix) { m_matrixScreenTexture = matrix; }
 
     QSh_Refraction_FallOff(const QSh_Refraction_FallOff* s)
     {
-        _currentIndexType = Refraction_FallOff;
-        _subIndexType = 0;
-        _screenTexture = s->screenTexture();
-        _refract = s->refract();
-        _fallOffColor = s->fallOffColor();
-        _fallOffInt = s->fallOffIntensity();
-        _fallOffSoft = s->fallOffSoft();
-        _matrixScreenTexture = s->matrixScreenTexture();
+        m_currentTypeIndex = static_cast<int>(Type::Refraction_FallOff);
+        m_subTypeIndex = 0;
+        m_screenTexture = s->screenTexture();
+        m_refract = s->refract();
+        m_fallOffColor = s->fallOffColor();
+        m_fallOffInt = s->fallOffIntensity();
+        m_fallOffSoft = s->fallOffSoft();
+        m_matrixScreenTexture = s->matrixScreenTexture();
     }
-    int indexType() const override { return Refraction_FallOff; }
-    bool use(QScrollEngineContext* context, QOpenGLShaderProgram* program) override;
-    void load(QScrollEngineContext* context, std::vector<QSharedPointer<QOpenGLShaderProgram>>& shaders) override;
-    QSh* copy() const override
+    QShPtr copy() const override
     {
-        return new QSh_Refraction_FallOff(this);
+        return QShPtr(new QSh_Refraction_FallOff(this));
+    }
+
+    int typeIndex() const override { return static_cast<int>(Type::Refraction_FallOff); }
+    bool use(QScrollEngineContext*, QOpenGLShaderProgram* program, const QDrawObject3D* drawObject) override;
+    void load(QScrollEngineContext* context, std::vector<QSharedPointer<QOpenGLShaderProgram>>& shaders) override;
+    std::vector<VertexAttributes> attributes() const override
+    {
+        std::vector<VertexAttributes> attrs;
+        attrs.push_back(VertexAttributes::TextureCoords);
+        attrs.push_back(VertexAttributes::Normals);
+        return attrs;
     }
 
 protected:
-    GLuint _screenTexture;
-    float _refract;
-    QColor _fallOffColor;
-    float _fallOffInt;
-    float _fallOffSoft;
-    QMatrix2x2 _matrixScreenTexture;
+    GLuint m_screenTexture;
+    float m_refract;
+    QColor m_fallOffColor;
+    float m_fallOffInt;
+    float m_fallOffSoft;
+    QMatrix2x2 m_matrixScreenTexture;
+
+public:
+    class UniformLocation
+    {
+    public:
+        void bindParameters(QScrollEngineContext* context,
+                            QOpenGLShaderProgram* program,
+                            const QSh_Refraction_FallOff* shader,
+                            const QSceneObject3D* sceneObject) const;
+        void loadLocations(QOpenGLShaderProgram* shader);
+
+    protected:
+        int matrixWVP;
+        int matrixW;
+        int matrixScreenTexture;
+        int worldCameraPosition;
+        int screenTexture;
+        int refract;
+        int fallOffColor;
+        int fallOffIntensity;
+        int fallOffSoft;
+    };
+
+    static const UniformLocation& getLocations() { return m_locations; }
+
+private:
+    static UniformLocation m_locations;
 };
 
 }

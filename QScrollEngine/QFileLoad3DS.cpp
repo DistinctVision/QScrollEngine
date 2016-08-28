@@ -5,22 +5,24 @@
 #include "QScrollEngine/QOtherMathFunctions.h"
 #include <QOpenGLTexture>
 #include <QObjectUserData>
+#include <QSharedPointer>
 #include <utility>
 #include <list>
 #include <climits>
+#include <cassert>
 
 #include <QMatrix4x4>
 
-#include <cassert>
+#include <QDebug>
 
 namespace QScrollEngine {
 
 QEntity* QFileLoad3DS::loadEntity(QScrollEngineContext* context,
                                   const QString& filename, const QString& textureDir, const QString& prefixTextureName)
 {
-    _entities.clear();
-    _materials.clear();
-    _tempInfo.clear();
+    m_entities.clear();
+    m_materials.clear();
+    m_tempInfo.clear();
     QFile file(filename);
     if (!file.open(QFile::ReadOnly))
         return nullptr;
@@ -29,9 +31,9 @@ QEntity* QFileLoad3DS::loadEntity(QScrollEngineContext* context,
         return nullptr;
     _readMain(context, reader);
     QEntity* entity = _getFinishEntity(context, textureDir, prefixTextureName);
-    _entities.clear();
-    _tempInfo.clear();
-    _materials.clear();
+    m_entities.clear();
+    m_tempInfo.clear();
+    m_materials.clear();
     file.close();
     return entity;
 }
@@ -137,13 +139,13 @@ void QFileLoad3DS::_readMain(QScrollEngineContext* context, QFileReader& reader)
         case CHUNK_EDIT_OBJECT:
         {
             QEntity* entity = _readEntity(context, reader, chunk);
-            _entities.push_back(entity);
+            m_entities.push_back(entity);
         }
             break;
         case CHUNK_EDIT_MATERIAL:
         {
             Material3DS material = _readMaterial(reader, chunk);
-            _materials.push_back(material);
+            m_materials.push_back(material);
         }
             break;
         case CHUNK_KEYFRAME:
@@ -175,7 +177,7 @@ QEntity* QFileLoad3DS::_readEntity(QScrollEngineContext* context, QFileReader& r
         case CHUNK_OBJECT_MESH:
         {
             QMesh* mesh = _readMesh(context, reader, chunk);
-            entity->addPart(mesh, new QSh_Color(), true);
+            entity->addPart(mesh, QShPtr(new QSh_Color()), true);
         }
             break;
         case CHUNK_END:
@@ -237,6 +239,8 @@ QMesh* QFileLoad3DS::_readMesh(QScrollEngineContext* context, QFileReader& reade
         case CHUNK_MESH_TEXCOORDS:
         {
             quint16 newCountVertices, oldCountVertices = mesh->countVertices();
+            mesh->enableVertexAttribute(QSh::VertexAttributes::TextureCoords);
+            mesh->textureCoords().resize(oldCountVertices);
             reader >> newCountVertices;
             float u, v;
             int i, count = std::min(newCountVertices, oldCountVertices);
@@ -294,10 +298,11 @@ QMesh* QFileLoad3DS::_readMesh(QScrollEngineContext* context, QFileReader& reade
     } else {
         assert(false);
     }
-    if (smoothGroups.size() >= mesh->countElements())
-        applySmoothGroups(mesh, smoothGroups);
-    else if (!smoothGroups.empty()) {
-        qDebug() << "smoothGroups is not valid.";
+    if (smoothGroups.size() >= mesh->countElements()) {
+        mesh->updateNormals();
+        //applySmoothGroups(mesh, smoothGroups);
+    } else if (!smoothGroups.empty()) {
+        qDebug() << "smoothGroups is not valid or not founded.";
     }
     mesh->applyChanges();
     mesh->updateLocalBoundingBox();
@@ -494,45 +499,50 @@ void QFileLoad3DS::_readAnimation(QFileReader& reader, Chunk& parentChunk)
     }
     //delete temp.animation;
     //temp.animation = nullptr;
-    _tempInfo.push_back(temp);
+    m_tempInfo.push_back(temp);
 }
 
-QEntity* QFileLoad3DS::_getFinishEntity(QScrollEngineContext* context, const QString& textureDir, const QString& prefixTextureName)
+QEntity* QFileLoad3DS::_getFinishEntity(QScrollEngineContext* context, const QString& textureDir,
+                                        const QString& prefixTextureName)
 {
     QOpenGLTexture* texture;
-    unsigned int i, j;
-    for (i=0; i<_entities.size(); ++i) {
-        QEntity* entity = _entities[i];
-        for (j=0; j < entity->countParts(); ++j) {
-            QEntity::QPartEntity* part = entity->part(j);
+    std::size_t i, j;
+    for (i = 0; i < m_entities.size(); ++i) {
+        QEntity* entity = m_entities[i];
+        for (j = 0; j < entity->countParts(); ++j) {
+            QEntity::Part* part = entity->part(j);
             if (part->mesh()->userData(0) != nullptr) {
                 QString* materialName = reinterpret_cast<QString*>(part->mesh()->userData(0));
-                for (unsigned int k=0; k<_materials.size(); ++k) {
-                    if (*materialName == _materials[k].name) {
+                for (std::size_t k = 0; k < m_materials.size(); ++k) {
+                    if (*materialName == m_materials[k].name) {
                         texture = nullptr;
-                        QString textureName = prefixTextureName + _materials[k].textureName;
-                        if ((textureDir != "!") && (!_materials[k].textureName.isEmpty())) {
+                        QString textureName = prefixTextureName + m_materials[k].textureName;
+                        if ((textureDir != "!") && (!m_materials[k].textureName.isEmpty())) {
                             texture = context->texture(textureName);
                             if (texture == nullptr)
-                                texture = context->loadTexture(textureName, textureDir + _materials[k].textureName);
+                                texture = context->loadTexture(textureName, textureDir + m_materials[k].textureName);
                         }
                         if (texture) {
-                            if (_materials[k].isLightMaterial) {
-                                float specularIntensity = (_materials[k].shininess > 0.0f) ? 1.0f : 0.0f;
-                                part->setShader(new QSh_Light(texture, _materials[k].diffuse, specularIntensity, _materials[k].shininess));
+                            if (m_materials[k].isLightMaterial) {
+                                float specularIntensity = (m_materials[k].shininess > 0.0f) ? 1.0f : 0.0f;
+                                part->setShader(QShPtr(
+                                                    new QSh_Light(texture, m_materials[k].diffuse, specularIntensity,
+                                                              m_materials[k].shininess)));
                             } else {
-                                part->setShader(new QSh_Texture1(texture, _materials[k].diffuse));
+                                part->setShader(QShPtr(new QSh_Texture(texture, m_materials[k].diffuse)));
                             }
                         } else {
-                            if (_materials[k].isLightMaterial) {
-                                float specularIntensity = (_materials[k].shininess > 0.0f) ? 1.0f : 0.0f;
-                                part->setShader(new QSh_Light(nullptr, _materials[k].diffuse, specularIntensity, _materials[k].shininess));
+                            if (m_materials[k].isLightMaterial) {
+                                float specularIntensity = (m_materials[k].shininess > 0.0f) ? 1.0f : 0.0f;
+                                part->setShader(QShPtr(
+                                                    new QSh_Light(nullptr, m_materials[k].diffuse, specularIntensity,
+                                                              m_materials[k].shininess)));
                             } else {
-                                static_cast<QSh_Color*>(part->shader())->setColor(_materials[k].diffuse);
+                                static_cast<QSh_Color*>(part->shader().data())->setColor(m_materials[k].diffuse);
                             }
-                            if ((!_materials[k].textureName.isEmpty()) && (textureDir != "!")) {
+                            if ((!m_materials[k].textureName.isEmpty()) && (textureDir != "!")) {
                                 qDebug() << QString("QScrollEngine: Failed to load texture - '") + textureDir +
-                                            _materials[k].textureName + "'";
+                                            m_materials[k].textureName + "'";
                             }
                         }
                         break;
@@ -543,18 +553,18 @@ QEntity* QFileLoad3DS::_getFinishEntity(QScrollEngineContext* context, const QSt
             }
         }
         if (!entity->name().isEmpty()) {
-            for (j=0; j<_tempInfo.size(); ++j) {
-                if (_tempInfo[j].index < 0) {
-                    if (_tempInfo[j].name == entity->name()) {
-                        _tempInfo[j].index = i;
-                        for (unsigned int k=0; k<entity->countParts(); ++k) {
-                            QEntity::QPartEntity* part = _entities[i]->part(k);
-                            part->mesh()->moveVertices(-_tempInfo[j].pivot);
+            for (j = 0; j < m_tempInfo.size(); ++j) {
+                if (m_tempInfo[j].index < 0) {
+                    if (m_tempInfo[j].name == entity->name()) {
+                        m_tempInfo[j].index = i;
+                        for (std::size_t k = 0; k < entity->countParts(); ++k) {
+                            QEntity::Part* part = m_entities[i]->part(k);
+                            part->mesh()->moveVertices(-m_tempInfo[j].pivot);
                             part->mesh()->applyChanges();
                             part->mesh()->updateLocalBoundingBox();
                         }
-                        entity->setPosition(_tempInfo[j].pivot);
-                        QAnimation3D* animation = _tempInfo[j].animation;
+                        entity->setPosition(m_tempInfo[j].pivot);
+                        QAnimation3D* animation = m_tempInfo[j].animation;
                         if (animation) {
                             if ((animation->countAnimKeysPosition() <= 1) &&
                                     (animation->countAnimKeysOrientation() <= 1) &&
@@ -569,20 +579,20 @@ QEntity* QFileLoad3DS::_getFinishEntity(QScrollEngineContext* context, const QSt
                                 }
                                 delete animation;
                             } else
-                                entity->setAnimation(_tempInfo[j].animation);
+                                entity->setAnimation(m_tempInfo[j].animation);
                         }
                     }
                 }
             }
         }
     }
-    for (i=0; i<_tempInfo.size(); ++i) {
-        if (_tempInfo[i].index >= 0) {
-            if (_tempInfo[i].parentId >= 0) {
-                for (j=0; j<_tempInfo.size(); ++j) {
-                    if (_tempInfo[j].id == _tempInfo[i].parentId) {
-                        if (_tempInfo[j].index >= 0) {
-                            _entities[_tempInfo[i].index]->setParentEntity(_entities[_tempInfo[j].index]);
+    for (i = 0; i < m_tempInfo.size(); ++i) {
+        if (m_tempInfo[i].index >= 0) {
+            if (m_tempInfo[i].parentId >= 0) {
+                for (j = 0; j < m_tempInfo.size(); ++j) {
+                    if (m_tempInfo[j].id == m_tempInfo[i].parentId) {
+                        if (m_tempInfo[j].index >= 0) {
+                            m_entities[m_tempInfo[i].index]->setParentEntity(m_entities[m_tempInfo[j].index]);
                         }
                         break;
                     }
@@ -590,30 +600,30 @@ QEntity* QFileLoad3DS::_getFinishEntity(QScrollEngineContext* context, const QSt
             }
         }
     }
-    for (i=0; i<_tempInfo.size(); ++i) {
-        if (_tempInfo[i].index >= 0) {
-            QEntity* entity = _entities[_tempInfo[i].index];
+    for (i = 0; i < m_tempInfo.size(); ++i) {
+        if (m_tempInfo[i].index >= 0) {
+            QEntity* entity = m_entities[m_tempInfo[i].index];
             if (entity->userData(0) == reinterpret_cast<QObjectUserData*>(1)) {
                 entity->setUserData(0, nullptr);
                 QEntity* parentEntity = entity->parentEntity();
                 if ((parentEntity) && (entity->countEntityChilds() == 0) && (entity->name().left(4) == "Mesh")) {
-                    for (unsigned int j=0; j<entity->countParts(); ++j) {
-                        QEntity::QPartEntity* part = entity->part(j);
+                    for (std::size_t j = 0; j < entity->countParts(); ++j) {
+                        QEntity::Part* part = entity->part(j);
                         parentEntity->addPart(part->mesh(), part->shader()->copy(), true);
                     }
                     delete entity;
-                    _entities[_tempInfo[i].index] = nullptr;
+                    m_entities[m_tempInfo[i].index] = nullptr;
                 }
             }
         }
     }
     QEntity* rootEntity = nullptr;
     int countRootEntity = 0;
-    for (i=0; i<_entities.size(); ++i) {
-        if (_entities[i]) {
-            if (_entities[i]->parentEntity() == nullptr) {
+    for (i = 0; i < m_entities.size(); ++i) {
+        if (m_entities[i]) {
+            if (m_entities[i]->parentEntity() == nullptr) {
                 ++countRootEntity;
-                rootEntity = _entities[i];
+                rootEntity = m_entities[i];
             }
         }
     }
@@ -626,21 +636,21 @@ QEntity* QFileLoad3DS::_getFinishEntity(QScrollEngineContext* context, const QSt
             return rootEntity;
     } else if (countRootEntity == 0) {
         assert(false);
-        for (i=0; i<_entities.size(); ++i) {
-            if (_entities[i])
-                _entities[i]->setParentEntity(nullptr);
+        for (i=0; i<m_entities.size(); ++i) {
+            if (m_entities[i])
+                m_entities[i]->setParentEntity(nullptr);
         }
-        for (i=0; i<_entities.size(); ++i) {
-            if (_entities[i])
-                delete _entities[i];
+        for (i=0; i<m_entities.size(); ++i) {
+            if (m_entities[i])
+                delete m_entities[i];
         }
         return nullptr;
     }
     rootEntity = new QEntity();
-    for (i=0; i<_entities.size(); ++i) {
-        if (_entities[i]) {
-            if (_entities[i]->parentEntity() == nullptr)
-                _entities[i]->setParentEntity(rootEntity);
+    for (i = 0; i < m_entities.size(); ++i) {
+        if (m_entities[i]) {
+            if (m_entities[i]->parentEntity() == nullptr)
+                m_entities[i]->setParentEntity(rootEntity);
         }
     }
     return rootEntity;
@@ -651,15 +661,12 @@ void QFileLoad3DS::applySmoothGroups(QMesh* mesh, const std::vector<quint32>& sm
     float epsilon = 0.0005f;
     float negEpsilon = 1.0f - epsilon;
     QMESH_ASSERT(mesh->isTriangles());
-    mesh->setEnable_vertex_normal(false);
-    std::vector<GLuint> triangles;
-    mesh->swapDataOfTriangles(triangles);
-    std::vector<QVector3D> vertices;
-    std::vector<QVector2D> texCoords;
-    std::vector<QVector3D> normals;
-    mesh->swapDataOfVertices(vertices, texCoords, normals);
-    std::vector<unsigned int> linkToNewVertices;
-    linkToNewVertices.resize(vertices.size(), std::numeric_limits<unsigned int>::max());
+    mesh->enableVertexAttribute(QSh::VertexAttributes::Normals);
+    std::vector<GLuint>& triangles = mesh->elements();
+    std::vector<QVector3D>& vertices = mesh->vertices();
+    std::vector<QVector2D>& texCoords = mesh->textureCoords();
+    std::vector<std::size_t> linkToNewVertices;
+    linkToNewVertices.resize(vertices.size(), std::numeric_limits<std::size_t>::max());
 
     std::list<_Vertex*> newVertices;
     std::vector<_Triangle> newTriangles;
@@ -669,21 +676,39 @@ void QFileLoad3DS::applySmoothGroups(QMesh* mesh, const std::vector<quint32>& sm
 
     QVector3D deltaVertices;
     QVector2D deltaTexCoords;
-    unsigned int i, j, indexA, indexB;
-    for (i=0; i<vertices.size(); ++i) {
-        if (linkToNewVertices[i] != std::numeric_limits<unsigned int>::max())
-            continue;
-        linkToNewVertices[i] = i;
-        for (j=i+1; j<vertices.size(); ++j) {
-            deltaVertices = vertices[i] - vertices[j];
-            deltaTexCoords = texCoords[i] - texCoords[j];
-            if (std::fmod(qAbs(deltaTexCoords.x()), 1.0f) > negEpsilon)
-                deltaTexCoords.setX(0.0f);
-            if (std::fmod(qAbs(deltaTexCoords.y()), 1.0f) > negEpsilon)
-                deltaTexCoords.setY(0.0f);
-            if ((qAbs(deltaVertices.x()) < epsilon) && (qAbs(deltaVertices.y()) < epsilon) && (qAbs(deltaVertices.z()) < epsilon) &&
-                    (qAbs(deltaTexCoords.x()) < epsilon) && (qAbs(deltaTexCoords.y()) < epsilon)) {
-                linkToNewVertices[j] = i;
+    std::size_t i, j, indexA, indexB;
+    if (mesh->vertexAttributeIsEnabled(QSh::VertexAttributes::TextureCoords)) {
+        if (vertices.size() != texCoords.size())
+            texCoords.resize(vertices.size());
+        for (i=0; i<vertices.size(); ++i) {
+            if (linkToNewVertices[i] != std::numeric_limits<std::size_t>::max())
+                continue;
+            linkToNewVertices[i] = i;
+            for (j=i+1; j<vertices.size(); ++j) {
+                deltaVertices = vertices[i] - vertices[j];
+                deltaTexCoords = texCoords[i] - texCoords[j];
+                if (std::fmod(qAbs(deltaTexCoords.x()), 1.0f) > negEpsilon)
+                    deltaTexCoords.setX(0.0f);
+                if (std::fmod(qAbs(deltaTexCoords.y()), 1.0f) > negEpsilon)
+                    deltaTexCoords.setY(0.0f);
+                if ((qAbs(deltaVertices.x()) < epsilon) && (qAbs(deltaVertices.y()) < epsilon) &&
+                        (qAbs(deltaVertices.z()) < epsilon) &&
+                        (qAbs(deltaTexCoords.x()) < epsilon) && (qAbs(deltaTexCoords.y()) < epsilon)) {
+                    linkToNewVertices[j] = i;
+                }
+            }
+        }
+    } else {
+        for (i=0; i<vertices.size(); ++i) {
+            if (linkToNewVertices[i] != std::numeric_limits<std::size_t>::max())
+                continue;
+            linkToNewVertices[i] = i;
+            for (j=i+1; j<vertices.size(); ++j) {
+                deltaVertices = vertices[i] - vertices[j];
+                if ((qAbs(deltaVertices.x()) < epsilon) && (qAbs(deltaVertices.y()) < epsilon) &&
+                        (qAbs(deltaVertices.z()) < epsilon)) {
+                    linkToNewVertices[j] = i;
+                }
             }
         }
     }
@@ -701,7 +726,7 @@ void QFileLoad3DS::applySmoothGroups(QMesh* mesh, const std::vector<quint32>& sm
                 edge = new _Edge();
                 edge->triangles[0] = i;
                 edge->indexJointOfTriangle[0] = j;
-                edge->triangles[1] = std::numeric_limits<unsigned int>::max();
+                edge->triangles[1] = std::numeric_limits<std::size_t>::max();
                 _Vertex* newVertexA;
                 if (j > 0) {
                     _Edge* prevEdge = newTriangle.edges[(j + 2) % 3];
@@ -728,7 +753,7 @@ void QFileLoad3DS::applySmoothGroups(QMesh* mesh, const std::vector<quint32>& sm
                 edge->vertices[1] = newVertexB;
                 newEdges.push_back(edge);
             } else {
-                //assert(edge->triangles[1] == std::numeric_limits<unsigned int>::max());
+                //assert(edge->triangles[1] == std::numeric_limits<std::size_t>::max());
                 edge->triangles[1] = i;
                 edge->indexJointOfTriangle[1] = j;
                 _Vertex* newVertexA;
@@ -764,46 +789,53 @@ void QFileLoad3DS::applySmoothGroups(QMesh* mesh, const std::vector<quint32>& sm
         assert((newTriangle.edges[2]->vertices[(newTriangle.edges[2]->triangles[0] == i)]->data) ==
                 (newTriangle.edges[0]->vertices[(newTriangle.edges[0]->triangles[1] == i)]->data));*/
     }
-    /*for (i=0; i<newTriangles.size(); ++i) {
-        _Triangle& triangle = newTriangles[i];
-        for (int j=0; j<3; ++j) {
-            _Edge& edge = triangle.edges[j];
-            newTriangles[edge.triangles[0]].;
-        }
-    }*/
     std::vector<QVector3D> resultVertices;
     std::vector<QVector2D> resultTexCoords;
     resultVertices.reserve(vertices.size());
-    for (std::list<_Vertex*>::iterator it = newVertices.begin(); it != newVertices.end(); ++it) {
-        _Vertex* vertex = *it;
-        if (vertex->data->edges.empty()) {
-            vertex->data->index = std::numeric_limits<unsigned int>::max();
-        } else {
-            vertex->data->index = resultVertices.size();
-            resultVertices.push_back(vertices[vertex->data->oldVertex]);
-            resultTexCoords.push_back(texCoords[vertex->data->oldVertex]);
+    if (mesh->vertexAttributeIsEnabled(QSh::VertexAttributes::TextureCoords)) {
+        for (std::list<_Vertex*>::iterator it = newVertices.begin(); it != newVertices.end(); ++it) {
+            _Vertex* vertex = *it;
+            if (vertex->data->edges.empty()) {
+                vertex->data->index = std::numeric_limits<std::size_t>::max();
+            } else {
+                vertex->data->index = resultVertices.size();
+                resultVertices.push_back(vertices[vertex->data->oldVertex]);
+                resultTexCoords.push_back(texCoords[vertex->data->oldVertex]);
+            }
+        }
+    } else {
+        for (std::list<_Vertex*>::iterator it = newVertices.begin(); it != newVertices.end(); ++it) {
+            _Vertex* vertex = *it;
+            if (vertex->data->edges.empty()) {
+                vertex->data->index = std::numeric_limits<std::size_t>::max();
+            } else {
+                vertex->data->index = resultVertices.size();
+                resultVertices.push_back(vertices[vertex->data->oldVertex]);
+            }
         }
     }
     for (i=0; i<newTriangles.size(); ++i) {
         _Triangle& newTriangle = newTriangles[i];
-        _Vertex* vertex1 = (newTriangle.edges[0]->triangles[0] == i) ? newTriangle.edges[0]->vertices[0] : newTriangle.edges[0]->vertices[1];
-        _Vertex* vertex2 = (newTriangle.edges[1]->triangles[0] == i) ? newTriangle.edges[1]->vertices[0] : newTriangle.edges[1]->vertices[1];
-        _Vertex* vertex3 = (newTriangle.edges[2]->triangles[0] == i) ? newTriangle.edges[2]->vertices[0] : newTriangle.edges[2]->vertices[1];
-        //assert(vertex1->data->index != std::numeric_limits<unsigned int>::max());
-        //assert(vertex2->data->index != std::numeric_limits<unsigned int>::max());
-        //assert(vertex3->data->index != std::numeric_limits<unsigned int>::max());
+        _Vertex* vertex1 = (newTriangle.edges[0]->triangles[0] == i) ?
+                    newTriangle.edges[0]->vertices[0] : newTriangle.edges[0]->vertices[1];
+        _Vertex* vertex2 = (newTriangle.edges[1]->triangles[0] == i) ?
+                    newTriangle.edges[1]->vertices[0] : newTriangle.edges[1]->vertices[1];
+        _Vertex* vertex3 = (newTriangle.edges[2]->triangles[0] == i) ?
+                    newTriangle.edges[2]->vertices[0] : newTriangle.edges[2]->vertices[1];
+        //assert(vertex1->data->index != std::numeric_limits<std::size_t>::max());
+        //assert(vertex2->data->index != std::numeric_limits<std::size_t>::max());
+        //assert(vertex3->data->index != std::numeric_limits<std::size_t>::max());
         GLuint* triangle = &triangles[i * 3];
         triangle[0] = vertex1->data->index;
         triangle[1] = vertex2->data->index;
         triangle[2] = vertex3->data->index;
     }
-    mesh->swapDataOfTriangles(triangles);
-    mesh->swapDataOfVertices(resultVertices, resultTexCoords, normals);
+    mesh->vertices() = std::move(resultVertices);
+    mesh->textureCoords() = std::move(resultTexCoords);
     for (std::list<_Vertex*>::iterator it = newVertices.begin(); it != newVertices.end(); ++it)
         delete *it;
     for (std::list<_Edge*>::iterator it = newEdges.begin(); it != newEdges.end(); ++it)
         delete *it;
-    mesh->setEnable_vertex_normal(true);
     mesh->updateNormals();
 }
 

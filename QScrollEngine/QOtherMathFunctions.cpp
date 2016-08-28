@@ -2,7 +2,7 @@
 
 namespace QScrollEngine {
 
-const float QOtherMathFunctions::EPS_omf = 0.0005f;
+const float QOtherMathFunctions::EPS = 0.0005f;
 
 QMatrix4x4 QOtherMathFunctions::invertedWorldMatrix(const QMatrix4x4& matrix)
 {
@@ -232,7 +232,7 @@ void QOtherMathFunctions::quaternionToAngleAxis(const QQuaternion& quaternion, f
     QQuaternion q = quaternion.normalized();
     angle = 2.0f * qAcos(q.scalar());
     float s = qSqrt(1.0f - q.scalar() * q.scalar());
-    if (s < EPS_omf)
+    if (s < EPS)
         axis = q.vector();
     else
         axis = q.vector() / s;
@@ -252,7 +252,7 @@ bool QOtherMathFunctions::collisionTriangleRay(QVector3D& result,
     float r2 = QVector3D::dotProduct(normal, rayEnd - v0);
     // если оба конца отрезка лежат по одну сторону от плоскости, то отрезок
     // не пересекает треугольник.
-    if (!((r1 > EPS_omf && r2 < -EPS_omf) || (r1 < -EPS_omf && r2 > EPS_omf)))
+    if (!((r1 > EPS && r2 < -EPS) || (r1 < -EPS && r2 > EPS)))
         return false;
     // вычисляем точку пересечения отрезка с плоскостью треугольника.
     result = (rayStart + ((rayEnd - rayStart) * (- r1 / (r2 - r1))));
@@ -266,27 +266,27 @@ bool QOtherMathFunctions::collisionTriangleRay(QVector3D& result,
     return true;
 }
 
-bool QOtherMathFunctions::collisionPlaneLine(QVector3D& result, const QVector3D& planeNormal, float planeD,
-                                             const QVector3D& linePoint, const QVector3D& lineDir, float& tLine)
+bool QOtherMathFunctions::collisionPlaneRay(QVector3D& result, float& tRay, const QVector3D& planeNormal, float planeD,
+                                             const QVector3D& rayPoint, const QVector3D& rayDir)
 {
-    tLine = QVector3D::dotProduct(lineDir, planeNormal);
-    if (qAbs(tLine) < EPS_omf)
+    tRay = QVector3D::dotProduct(rayDir, planeNormal);
+    if (qAbs(tRay) < EPS)
         return false;
-    tLine = - ((QVector3D::dotProduct(linePoint, planeNormal) + planeD) / tLine);
-    result = linePoint + lineDir * tLine;
+    tRay = - ((QVector3D::dotProduct(rayPoint, planeNormal) + planeD) / tRay);
+    result = rayPoint + rayDir * tRay;
     return true;
 }
 
-bool QOtherMathFunctions::collisionLines(QVector2D& result, float& tLineA, float& tLineB,
+bool QOtherMathFunctions::collisionRays(QVector2D& result, float& tLineA, float& tLineB,
                                          const QVector2D& pointA, const QVector2D& dirA,
                                          const QVector2D& pointB, const QVector2D& dirB)
 {
-    if (qAbs(dirB.x()) <= EPS_omf) {
-        if (qAbs(dirA.x()) <= EPS_omf)
+    if (qAbs(dirB.x()) <= EPS) {
+        if (qAbs(dirA.x()) <= EPS)
             return false;
         result.setY(dirA.y() / dirA.x());
         tLineA = dirB.y() - dirB.x() * result.y();
-        if (qAbs(tLineA) <= EPS_omf)
+        if (qAbs(tLineA) <= EPS)
             return false;
         result.setX(pointB.x() - pointA.x());
         tLineB = (result.x() * result.y() + pointA.y() - pointB.y()) / tLineA;
@@ -298,7 +298,7 @@ bool QOtherMathFunctions::collisionLines(QVector2D& result, float& tLineA, float
     //    return false;
     result.setY(dirB.y() / dirB.x());
     tLineB = dirA.y() - dirA.x() * result.y();
-    if (qAbs(tLineB) <= EPS_omf)
+    if (qAbs(tLineB) <= EPS)
         return false;
     result.setX(pointA.x() - pointB.x());
     tLineA = (result.x() * result.y() + pointB.y() - pointA.y()) / tLineB;
@@ -307,13 +307,132 @@ bool QOtherMathFunctions::collisionLines(QVector2D& result, float& tLineA, float
     return true;
 }
 
+bool QOtherMathFunctions::collisionSphereRay(QVector3D& result, float& tRay, const QVector3D& spherePosition, float sphereRadius,
+                                             const QVector3D& rayPoint, const QVector3D& rayDir)
+{
+    QVector3D delta_sphere_rayPoint = spherePosition - rayPoint;
+    float lengthSquared_rayDir = rayDir.lengthSquared();
+    tRay = QVector3D::dotProduct(delta_sphere_rayPoint, rayDir) / lengthSquared_rayDir;
+    if (tRay > 1.0f)
+        return false;
+    QVector3D project = rayDir * tRay + rayPoint;
+    float lengthSquared_project_sphere = (spherePosition - project).lengthSquared();
+    float sphereRadiusSquared = sphereRadius * sphereRadius;
+    if (lengthSquared_project_sphere > sphereRadiusSquared)
+        return false;
+    float deltaT = qSqrt(sphereRadiusSquared - lengthSquared_project_sphere) / qSqrt(lengthSquared_rayDir);
+    if (tRay < deltaT) {
+        tRay += deltaT;
+        if (tRay < 1.0f) {
+            result = rayPoint + rayDir * tRay;
+            return true;
+        } else {
+            return false;
+        }
+    }
+    tRay -= deltaT;
+    result = rayPoint + rayDir * tRay;
+    return true;
+}
+
+bool QOtherMathFunctions::collisionSphereNRay(QVector3D& result, float& tRay, const QVector3D& spherePosition, float sphereRadiusSquared,
+                                              const QVector3D& rayPoint, const QVector3D& rayNDir, float rayLength)
+{
+    QVector3D delta_sphere_rayPoint = spherePosition - rayPoint;
+    tRay = QVector3D::dotProduct(delta_sphere_rayPoint, rayNDir);
+    if (tRay > rayLength)
+        return false;
+    QVector3D project = rayNDir * tRay + rayPoint;
+    float lengthSquared_project_sphere = (spherePosition - project).lengthSquared();
+    if (lengthSquared_project_sphere > sphereRadiusSquared)
+        return false;
+    float deltaT = qSqrt(sphereRadiusSquared - lengthSquared_project_sphere) / rayLength;
+    if (tRay < deltaT) {
+        tRay += deltaT;
+        if (tRay < 1.0f) {
+            result = rayPoint + rayNDir * tRay;
+            return true;
+        } else {
+            return false;
+        }
+    }
+    tRay -= deltaT;
+    result = rayPoint + rayNDir * tRay;
+    return true;
+}
+
+
+bool QOtherMathFunctions::collisionCylinderRay(QVector3D& result, float& tRay,
+                                               const QVector3D& cylinderPointA, const QVector3D& cylinderPointB, float cylinderRadius,
+                                               const QVector3D& rayPoint, const QVector3D& rayDir)
+{
+    QVector3D cylinderAxis = cylinderPointB - cylinderPointA;
+    float cylinderHeight = cylinderAxis.length();
+    cylinderAxis = (cylinderHeight > EPS) ? cylinderAxis / cylinderHeight : QVector3D(0.0f, 0.0f, 0.0f);
+
+    QVector3D projDir = rayDir - cylinderAxis * QVector3D::dotProduct(cylinderAxis, rayDir);
+    float lengthProjDir = projDir.length();
+    QVector3D delta = rayPoint - cylinderPointA;
+    if (lengthProjDir < EPS) {
+        float h = QVector3D::dotProduct(cylinderAxis, delta);
+        if (h < 0.0f) {
+            if (collisionPlaneRay(result, tRay, cylinderAxis, - QVector3D::dotProduct(cylinderPointA, cylinderAxis), rayPoint, rayDir)) {
+                delta = result - cylinderPointA;
+                return (delta.lengthSquared() < cylinderRadius * cylinderRadius);
+            }
+        } else if (h > cylinderHeight) {
+            if (collisionPlaneRay(result, tRay, cylinderAxis, - QVector3D::dotProduct(cylinderPointB, cylinderAxis), rayPoint, rayDir)) {
+                delta = result - cylinderPointB;
+                return (delta.lengthSquared() < cylinderRadius * cylinderRadius);
+            }
+        }
+        return true;
+    }
+    projDir /= lengthProjDir;
+
+    QVector3D perpDir = QVector3D::crossProduct(projDir, cylinderAxis);
+
+    QVector2D projRayPoint(QVector3D::dotProduct(delta, projDir), QVector3D::dotProduct(delta, perpDir));
+
+    if (std::fabs(projRayPoint.y()) > cylinderRadius)
+        return false;
+
+    tRay = - projRayPoint.x();
+    float deltaT = std::sqrt(cylinderRadius * cylinderRadius - projRayPoint.y() * projRayPoint.y());
+    if (tRay < deltaT) {
+        tRay += deltaT;
+        if (tRay < lengthProjDir) {
+            tRay /= lengthProjDir;
+            result = rayPoint + rayDir * tRay;
+        } else {
+            return false;
+        }
+    } else {
+        tRay = (tRay - deltaT) / lengthProjDir;
+        result = rayPoint + rayDir * tRay;
+    }
+    float h = QVector3D::dotProduct(result - cylinderPointA, cylinderAxis);
+    if (h < 0.0f) {
+        if (collisionPlaneRay(result, tRay, cylinderAxis, - QVector3D::dotProduct(cylinderPointA, cylinderAxis), rayPoint, rayDir)) {
+            delta = result - cylinderPointA;
+            return (delta.lengthSquared() < cylinderRadius * cylinderRadius);
+        }
+    } else if (h > cylinderHeight) {
+        if (collisionPlaneRay(result, tRay, cylinderAxis, - QVector3D::dotProduct(cylinderPointB, cylinderAxis), rayPoint, rayDir)) {
+            delta = result - cylinderPointB;
+            return (delta.lengthSquared() < cylinderRadius * cylinderRadius);
+        }
+    }
+    return true;
+}
+
 bool QOtherMathFunctions::circumCircle(QVector2D& resultPosition, const QVector2D& p1,
-                                              const QVector2D& p2, const QVector2D& p3)
+                                       const QVector2D& p2, const QVector2D& p3)
 {
     float s1 = p1.lengthSquared(), s2 = p2.lengthSquared(), s3 = p3.lengthSquared(), a;
     a = p1.x() * p2.y() + p1.y() * p3.x() + p3.y() * p2.x() - p2.y() * p3.x() - p1.y() * p2.x() - p1.x() * p3.y();
     a *= 2.0f;
-    if (a < EPS_omf)
+    if (a < EPS)
         return false;
     resultPosition.setX(s1 * (p2.y() - p3.y()) + s2 * (p3.y() - p1.y()) + s3 * (p1.y() - p2.y()));
     resultPosition.setY(- (s1 * (p2.x() - p3.x()) + s2 * (p3.x() - p1.x()) + s3 * (p1.x() - p2.x())));
@@ -322,7 +441,7 @@ bool QOtherMathFunctions::circumCircle(QVector2D& resultPosition, const QVector2
 }
 
 bool QOtherMathFunctions::circumSphere(QVector3D& resultPosition, const QVector3D& p1,
-                                              const QVector3D& p2, const QVector3D& p3, const QVector3D& p4)
+                                       const QVector3D& p2, const QVector3D& p3, const QVector3D& p4)
 {
     float A, a[4], s[4];//, sa3, C;
     QVector3D b[3], D, t[3], k[4];
@@ -375,7 +494,7 @@ bool QOtherMathFunctions::circumSphere(QVector3D& resultPosition, const QVector3
 	A = - a[0] + a[1] - a[2] + a[3];
     A *= 2.0f;
 
-    if (A < EPS_omf)
+    if (A < EPS)
         return false;
 
     //C = s[0] * a[0] - s[1] * a[1] + s[2] * a[2] + sa3;
@@ -386,559 +505,6 @@ bool QOtherMathFunctions::circumSphere(QVector3D& resultPosition, const QVector3
 
     resultPosition = D / A;
     return true;
-}
-
-bool QOtherMathFunctions::nearestPoint(QVector3D& result, const QVector3D& point1,
-                                              QVector3D& point2, QVector3D* simplex, int& n)
-{
-    QVector3D vec21 = point2 - point1;
-    float lS = vec21.lengthSquared();
-    if (lS < EPS_omf) {
-		result = point1;
-		simplex[0] = point1;
-		n = 1;
-        if (isNull(result))
-            return true;
-		return false;
-	}
-    float dpi = - (QVector3D::dotProduct(point1, vec21) / lS);
-    if (dpi < 0.0f) {
-		result = point1;
-		simplex[0] = point1;
-		n = 1;
-    } else if (dpi > 1.0f) {
-		result = point2;
-		simplex[0] = point2;
-		n = 1;
-    } else {
-		result = (vec21 * dpi) + point1;
-		simplex[0] = point1;
-		simplex[1] = point2;
-		n = 2;
-        if (isNull(result))
-            return true;
-	}
-	return false;
-}
-
-void QOtherMathFunctions::_nearestPoint_edge(QVector3D& result, const QVector3D &point1,
-                                                    const QVector3D &point2, QVector3D &vec12,
-                                                    QVector3D* simplex, int& n)
-{
-    float lS = vec12.lengthSquared();
-    float t = - QVector3D::dotProduct(point1, vec12) / lS;
-    if (t < 0.0f) {
-		result = point1;
-		simplex[0] = point1;
-		n = 1;
-    } else if (t > 1.0f) {
-		result = point2;
-		simplex[0] = point2;
-		n = 1;
-    } else {
-		result = point1 + (vec12 * t);
-		simplex[0] = point1;
-		simplex[1] = point2;
-		n = 2;
-	}
-}
-
-void QOtherMathFunctions::_nearestPoint_2edges(QVector3D& result, const QVector3D &point1,
-                                                      const QVector3D &point2, const QVector3D &point3,
-                                                      QVector3D& vec12, QVector3D& vec23,
-                                                      QVector3D* simplex, int& n)
-{
-    float lS = vec12.lengthSquared(), t;
-    t = - QVector3D::dotProduct(point1, vec12) / lS;
-    if (t < 0.0f) {
-		result = point1;
-		simplex[0] = point1;
-		n = 1;
-    } else if (t > 1.0f) {
-        _nearestPoint_edge(result, point2, point3, vec23, simplex, n);
-    } else {
-		result = point1 + (vec12 * t);
-		simplex[0] = point1;
-		simplex[1] = point2;
-		n = 2;
-	}
-}
-
-void QOtherMathFunctions::_nearestPoint_triangle(QVector3D& result, const QVector3D &point1,
-                                                        const QVector3D &point2, const QVector3D &point3,
-                                                        QVector3D &vec12, QVector3D &vec23,
-                                                        QVector3D &vec31, QVector3D &dir,
-                                                        QVector3D *simplex, int& n)
-{
-    float zn1 = QVector3D::dotProduct(point1, QVector3D::crossProduct(dir, vec12)),
-        zn2 = QVector3D::dotProduct(point2, QVector3D::crossProduct(dir, vec23)),
-        zn3 = QVector3D::dotProduct(point3, QVector3D::crossProduct(dir, vec31));
-/*#if checkNearFunc
-    QVector3 dirq = - QVector3D::crossProduct(vec12, vec31);
-    if (dirq != dir) {
-		error("nearestPoint_triangle");
-	}
-#endif*/
-    if (zn1 <= 0.0f) {
-        if (zn2 <= 0.0f) {
-            if (zn3 <= 0.0f) {
-                zn1 = QVector3D::dotProduct(point1, dir) / dir.lengthSquared();
-				result = dir * zn1;
-				n = 3;
-            } else {
-                _nearestPoint_edge(result, point3, point1, vec31, simplex, n);
-			}
-        } else {
-            if (zn3 <= 0.0f) {
-                _nearestPoint_edge(result, point2, point3, vec23, simplex, n);
-            } else {
-                _nearestPoint_2edges(result, point2, point3, point1, vec23, vec31, simplex, n);
-			}
-		}
-    } else {
-        if (zn2 <= 0.0f) {
-            if (zn3 <= 0.0f) {
-                _nearestPoint_edge(result, point1, point2, vec12, simplex, n);
-            } else {
-                _nearestPoint_2edges(result, point3, point1, point2, vec31, vec12, simplex, n);
-			}
-        } else {
-            if (zn3 <= 0.0f) {
-                _nearestPoint_2edges(result, point1, point2, point3, vec12, vec23, simplex, n);
-            } else { // imposible
-				result = point1;
-				simplex[0] = point1;
-				n = 1;
-			}
-		}
-	}
-}
-
-bool QOtherMathFunctions::nearestPoint(QVector3D& result, const QVector3D& point1, const QVector3D& point2,
-                                              const QVector3D &point3, QVector3D *simplex, int& n)
-{
-    QVector3D vec12 = point2 - point1;
-    QVector3D vec23 = point3 - point2;
-    QVector3D vec31 = point1 - point3;
-    QVector3D dir = QVector3D::crossProduct(vec31, vec12);
-    float lengthSquared = dir.lengthSquared();
-    if (lengthSquared < EPS_omf * EPS_omf) {
-		result = point1;
-		simplex[0] = point1;
-		n = 1;
-        if (isNull(result))
-            return true;
-		return false;
-	}
-    _nearestPoint_triangle(result, point1, point2, point3, vec12, vec23, vec31, dir, simplex, n);
-    if (isNull(result))
-        return true;
-	return false;
-}
-
-void QOtherMathFunctions::_nearestPoint_2triangles(QVector3D& result, const QVector3D& point1,
-                                                          const QVector3D& point2, const QVector3D& point3,
-                                                          const QVector3D& point4, QVector3D& vec12,
-                                                          QVector3D& vec23, QVector3D& vec31,
-                                                          QVector3D& vec24, QVector3D& vec43,
-                                                          QVector3D& dir1, QVector3D& dir2,
-                                                          QVector3D *simplex, int& n)
-{
-    float zn1, zn2 = QVector3D::dotProduct(point2, QVector3D::crossProduct(dir1, vec23)), zn3;
-/*#if checkNearFunc
-    QVector3D dirq1 = QVector3D::crossProduct((point2 - point1), (point3 - point1));
-    QVector3D dirq2 = QVector3D::crossProduct((point3 - point4), (point2 - point4));
-    if (equally(dirq1, dir1))
-		error("nearestPoint_2triangles[1] - dir1");
-    if (equally(dirq2, dir2))
-		error("nearestPoint_2triangles[1] - dir2");
-    dirq1 = - QVector3D::crossProduct(vec12, vec31);
-    dirq2 = QVector3D::crossProduct(vec24, vec23);
-    if (equally(dirq1, dir1))
-		error("nearestPoint_2triangles[1] - dir1 - b");
-    if (equally(dirq2, dir2))
-		error("nearestPoint_2triangles[1] - dir2 - b");
-#endif*/
-    if (zn2 <= 0.0f) {
-        zn1 = QVector3D::dotProduct(point1, QVector3D::crossProduct(dir1, vec12));
-        zn3 = QVector3D::dotProduct(point3, QVector3D::crossProduct(dir1, vec31));
-        if (zn1 <= 0.0f) {
-            if (zn3 <= 0.0f) {
-                zn1 = QVector3D::dotProduct(point1, dir1) / dir1.lengthSquared();
-				result = dir1 * zn1;
-				simplex[0] = point1;
-				simplex[1] = point2;
-				simplex[2] = point3;
-				n = 3;
-            } else {
-                _nearestPoint_2edges(result, point4, point3, point1, vec43, vec31, simplex, n);
-			}
-        } else {
-            if (zn3 <= 0.0f) {
-                _nearestPoint_2edges(result, point1, point2, point4, vec12, vec24, simplex, n);
-            } else {
-                _nearestPoint_2edges(result, point3, point1, point2, vec31, vec12, simplex, n);
-			}
-		}
-    } else {
-		// 2, 4, 3
-        zn2 = - QVector3D::dotProduct(point3, QVector3D::crossProduct(dir2, vec23));
-        float zn1b = QVector3D::dotProduct(point2, QVector3D::crossProduct(dir2, vec24)),
-            zn3b = QVector3D::dotProduct(point4, QVector3D::crossProduct(dir2, vec43));
-        if (zn2 <= 0.0f) {
-            if (zn1b <= 0.0f) {
-                if (zn3b <= 0.0f) {
-                    zn1 = QVector3D::dotProduct(point2, dir2) / dir2.lengthSquared();
-					result = dir2 * zn1;
-					simplex[0] = point2;
-					simplex[1] = point4;
-					simplex[2] = point3;
-					n = 3;
-                } else {
-                    _nearestPoint_2edges(result, point4, point3, point1, vec43, vec31, simplex, n);
-				}
-            } else {
-                if (zn3b <= 0.0f) {
-                    _nearestPoint_2edges(result, point1, point2, point4, vec12, vec24, simplex, n);
-                } else {
-                    _nearestPoint_2edges(result, point2, point4, point3, vec24, vec43, simplex, n);
-				}
-			}
-        } else {
-            float t = - QVector3D::dotProduct(point2, vec23) / vec23.lengthSquared();
-            if ((t >= 0.0f) && (t <= 1.0f)) {
-				result = point2 + (vec23 * t);
-				simplex[0] = point2;
-				simplex[1] = point3;
-				n = 2;
-            } else {
-                if (zn1b <= 0.0f) {
-                    if (zn3b <= 0.0f) {
-                        if (t < 0.0f) {
-							result = point2;
-							simplex[0] = point2;
-                        } else {
-							result = point3;
-							simplex[0] = point3;
-						}
-						n = 1;
-                    } else {
-                        _nearestPoint_2edges(result, point4, point3, point1, vec43, vec31, simplex, n);
-					}
-                } else {
-                    if (zn3b <= 0.0f) {
-                        _nearestPoint_2edges(result, point1, point2, point4, vec12, vec24, simplex, n);
-                    } else { // imposible
-						result = point1;
-						simplex[0] = point1;
-						n = 1;
-					}
-				}
-			}
-		}
-	}
-}
-
-void QOtherMathFunctions::_nearestPoint_2triangles(QVector3D& result, const QVector3D &point1,
-                                                          const QVector3D &point2, const QVector3D &point3,
-                                                          const QVector3D &point4, QVector3D &vec12,
-                                                          QVector3D &vec23, QVector3D &vec24,
-                                                          QVector3D &dir1, QVector3D &dir2,
-                                                          QVector3D *simplex, int& n)
-{
-    float zn1, zn2 = QVector3D::dotProduct(point2, QVector3D::crossProduct(dir1, vec23));
-/*#if checkNearFunc
-    QVector3D dirq1 = QVector3D::crossProduct((point2 - point1), (point3 - point1));
-    QVector3D dirq2 = QVector3D::crossProduct((point3 - point4), (point2 - point4));
-	if (dirq1 != dir1)
-		error("nearestPoint_2triangles[2] - dir1");
-	if (dirq2 != dir2)
-		error("nearestPoint_2triangles[2] - dir2");
-#endif*/
-    if (zn2 <= 0.0f) {
-        zn1 = QVector3D::dotProduct(point1, QVector3D::crossProduct(dir1, vec12));
-        if (zn1 <= 0.0f) {
-            zn1 = QVector3D::dotProduct(point1, dir1) / dir1.lengthSquared();
-			result = dir1 * zn1;
-			simplex[0] = point1;
-			simplex[1] = point2;
-			simplex[2] = point3;
-			n = 3;
-        } else {
-            _nearestPoint_2edges(result, point1, point2, point4, vec12, vec24, simplex, n);
-		}
-    } else {
-		// 2, 4, 3
-        zn2 = - QVector3D::dotProduct(point3, QVector3D::crossProduct(dir2, vec23));
-        float zn1b = QVector3D::dotProduct(point2, QVector3D::crossProduct(dir2, vec24));
-        if (zn2 <= 0.0f) {
-            if (zn1b <= 0.0f) {
-                zn1 = QVector3D::dotProduct(point2, dir2) / dir2.lengthSquared();
-				result = dir2 * zn1;
-				simplex[0] = point2;
-				simplex[1] = point4;
-				simplex[2] = point3;
-				n = 3;
-            } else {
-                _nearestPoint_2edges(result, point1, point2, point4, vec12, vec24, simplex, n);
-			}
-        } else {
-            float t = - QVector3D::dotProduct(point2, vec23) / vec23.lengthSquared();
-            if ((t >= 0.0f) && (t <= 1.0f)) {
-				result = point2 + (vec23 * t);
-				simplex[0] = point2;
-				simplex[1] = point3;
-				n = 2;
-            } else {
-                if (zn1b <= 0.0f) {
-                    if (t < 0.0f) {
-						result = point2;
-						simplex[0] = point2;
-                    } else {
-						result = point3;
-						simplex[0] = point3;
-					}
-					n = 1;
-                } else {
-                    _nearestPoint_2edges(result, point1, point2, point4, vec12, vec24, simplex, n);
-				}
-			}
-		}
-	}
-}
-
-void QOtherMathFunctions::_nearestPoint_3triangles(QVector3D& result, const QVector3D& point1,
-                                                          const QVector3D& point2, const QVector3D& point3,
-                                                          const QVector3D& point4, QVector3D& vec12,
-                                                          QVector3D& vec23, QVector3D& vec31,
-                                                          QVector3D& vec24, QVector3D& vec43,
-                                                          QVector3D& vec14, QVector3D& dir1,
-                                                          QVector3D& dir2, QVector3D& dir3,
-                                                          QVector3D *simplex, int& n)
-{
-    float zn2, zn3 = QVector3D::dotProduct(point3, QVector3D::crossProduct(dir1, vec31));
-/*#if checkNearFunc
-    QVector3D dirq1 = QVector3D::crossProduct((point2 - point1), (point3 - point1));
-    QVector3D dirq2 = QVector3D::crossProduct((point3 - point4), (point2 - point4));
-    QVector3D dirq3 = QVector3D::crossProduct((point3 - point1), (point4 - point1));
-	if (dirq1 != dir1)
-		error("nearestPoint_3triangles - dir1");
-	if (dirq2 != dir2)
-		error("nearestPoint_3triangles - dir2");
-	if (dirq3 != dir3)
-		error("nearestPoint_3triangles - dir3");
-    dirq1 = - QVector3D::crossProduct(vec12, vec31);
-    dirq2 = - QVector3D::crossProduct(vec43, vec24);
-    dirq3 = - QVector3D::crossProduct(vec31, vec14);
-	if (dirq1 != dir1)
-		error("nearestPoint_3triangles - dir1 - b");
-	if (dirq2 != dir2)
-		error("nearestPoint_3triangles - dir2 - b");
-	if (dirq3 != dir3)
-		error("nearestPoint_3triangles - dir3 - b");
-#endif*/
-	if (zn3 <= 0.0f)
-	{
-        //_nearestPoint_2triangles(result, point1, point2, point3, point4, vec12, vec23, vec24, dir1, dir2, simplex, n);
-        _nearestPoint_2triangles(result, point1, point2, point3, point4, vec12, vec24, vec31, vec24, vec43, dir1, dir2, simplex, n);
-    } else {
-        zn2 = QVector3D::dotProduct(point2, QVector3D::crossProduct(dir1, vec23));
-        if (zn2 <= 0.0f) {
-            vec43 = - vec43;
-            vec14 = - vec14;
-            //_nearestPoint_2triangles(result, point2, point3, point1, point4, vec23, vec31, vec43, dir1, dir3, simplex, n);
-            _nearestPoint_2triangles(result, point2, point3, point1, point4, vec23, vec31, vec12, vec43, vec14, dir1, dir3, simplex, n);
-        } else {
-            vec14 = - vec14;
-            vec23 = - vec23;
-            vec31 = - vec31;
-            //_nearestPoint_2triangles(result, point2, point4, point3, point1, vec24, vec43, vec14, dir2, dir3, simplex, n);
-            _nearestPoint_2triangles(result, point2, point4, point3, point1, vec24, vec43, vec23, vec14, vec31, dir2, dir3, simplex, n);
-		}
-	}
-}
-
-bool QOtherMathFunctions::nearestPoint(QVector3D &result, const QVector3D& point1, const QVector3D& point2,
-                                              const QVector3D& point3, const QVector3D& point4,
-                                              QVector3D* simplex, int& n)
-{
-    QVector3D vec12 = point2 - point1,
-		vec13 = point3 - point1,
-		vec14 = point4 - point1, vec23, vec34, vec24;
-    QVector3D dir1 = QVector3D::crossProduct(vec12, vec13), // 1, 2, 3
-		dir2, dir3, dir4;
-    float lengthSquared = dir1.lengthSquared(), set;
-    if (lengthSquared < EPS_omf * EPS_omf) {
-        if (isNull(point2 - point1)) {
-            vec14 = - vec14;
-			vec34 = point4 - point3;
-            _nearestPoint_triangle(result, point1, point3, point4, vec13, vec34, vec14, dir1, simplex, n);
-            if (isNull(result))
-                return true;
-            if (n == 3) {
-				simplex[0] = point1;
-				simplex[1] = point3;
-				simplex[2] = point4;
-			}
-			return false;
-        } else {
-            vec14 = - vec14;
-			vec24 = point4 - point2;
-            _nearestPoint_triangle(result, point1, point2, point4, vec12, vec24, vec14, dir1, simplex, n);
-            if (isNull(result))
-                return true;
-            if (n == 3) {
-				simplex[0] = point1;
-				simplex[1] = point2;
-				simplex[2] = point4;
-			}
-			return false;
-		}
-	}
-    set = QVector3D::dotProduct(vec14, dir1);
-    if (qAbs(set) < EPS_omf * EPS_omf) {
-		vec13 = point1 - point3;
-        _nearestPoint_triangle(result, point1, point2, point3, vec12, vec23, vec13, dir1, simplex, n);
-        if (isNull(result))
-            return true;
-        if (n == 3) {
-			simplex[0] = point1;
-			simplex[1] = point2;
-			simplex[2] = point3;
-		}
-		return false;
-	}
-    QVector3D p2, p3;
-    if (set > 0.0f)  {
-        p2 = point3;
-        p3 = point2;
-        std::swap(vec12, vec13);
-        dir1 = - dir1;
-    } else {
-        p2 = point2;
-        p3 = point3;
-    }
-    vec23 = p3 - p2;
-    vec34 = point4 - p3;
-    vec24 = point4 - p2;
-
-    dir2 = QVector3D::crossProduct(vec14, vec12); // 1, 4, 2
-    dir3 = QVector3D::crossProduct(vec13, vec14); // 1, 3, 4
-    dir4 = QVector3D::crossProduct(vec24, vec23); // 2, 4, 3
-    float zn1 = - QVector3D::dotProduct(point1, dir1), zn2 = - QVector3D::dotProduct(point1, dir2),
-            zn3 = - QVector3D::dotProduct(point1, dir3), zn4 = - QVector3D::dotProduct(p2, dir4);
-    if (zn1 >= 0.0f) {
-        if (zn2 >= 0.0f) {
-            if (zn3 >= 0.0f) {
-                if (zn4 >= 0.0f) {
-					//imposible
-					result = point1;
-					simplex[0] = point1;
-					n = 1;
-                } else {
-                    vec13 = - vec13;
-                    vec14 = - vec14;
-                    _nearestPoint_3triangles(result, p2, p3, point1, point4, vec23, vec13, vec12, vec34, vec14, vec24, dir1, dir2, dir3, simplex, n);
-				}
-            } else {
-                if (zn4 >= 0.0f) {
-                    vec13 = - vec13;
-                    vec24 = - vec24;
-                    _nearestPoint_3triangles(result, p3, point1, p2, point4, vec13, vec12, vec23, vec14, vec24, vec34, dir1, dir4, dir2, simplex, n);
-                } else {
-                    vec13 = - vec13;
-                    vec14 = - vec14;
-                    _nearestPoint_2triangles(result, p2, p3, point1, point4, vec23, vec13, vec12, vec34, vec14, dir1, dir2, simplex, n);
-				}
-			}
-        } else {
-            if (zn3 >= 0.0f) {
-                if (zn4 >= 0.0f) {
-                    vec13 = - vec13;
-                    vec34 = - vec34;
-                    _nearestPoint_3triangles(result, point1, p2, p3, point4, vec12, vec23, vec13, vec24, vec34, vec14, dir1, dir3, dir4, simplex, n);
-                } else {
-                    vec14 = - vec14;
-                    _nearestPoint_2triangles(result, point4, point1, p3, p2, vec14, vec13, vec34, vec12, vec23, dir3, dir1, simplex, n);
-				}
-            } else {
-                if (zn4 >= 0.0f) {
-                    vec13 = - vec13;
-                    vec34 = - vec34;
-                    _nearestPoint_2triangles(result, point1, p2, p3, point4, vec12, vec23, vec13, vec24, vec34, dir1, dir4, simplex, n);
-                } else {
-                    vec13 = - vec13;
-                    _nearestPoint_triangle(result, point1, p2, p3, vec12, vec23, vec13, dir1, simplex, n);
-                    if (n == 3) {
-						simplex[0] = point1;
-                        simplex[1] = p2;
-                        simplex[2] = p3;
-					}
-				}
-			}
-		}
-    } else {
-        if (zn2 >= 0.0f) {
-            if (zn3 >= 0.0f) {
-                if (zn4 >= 0.0f) {
-                    vec12 = - vec12;
-                    vec24 = - vec24;
-                    _nearestPoint_3triangles(result, p2, point1, point4, p3, vec12, vec14, vec24, vec13, vec34, vec23, dir2, dir3, dir4, simplex, n);
-                } else {
-                    vec12 = - vec12;
-                    vec24 = - vec24;
-                    _nearestPoint_2triangles(result, p2, point1, point4, p3, vec12, vec14, vec24, vec13, vec34, dir2, dir3, simplex, n);
-				}
-            } else {
-                if (zn4 >= 0.0f) {
-                    vec24 = - vec24;
-                    vec12 = - vec12;
-                    vec34 = - vec34;
-                    vec23 = - vec23;
-                    _nearestPoint_2triangles(result, point1, point4, p2, p3, vec14, vec24, vec12, vec34, vec23, dir2, dir4, simplex, n);
-                } else {
-                    vec24 = - vec24;
-                    vec12 = - vec12;
-                    _nearestPoint_triangle(result, point1, point4, p2, vec14, vec24, vec12, dir2, simplex, n);
-                    if (n == 3) {
-						simplex[0] = point1;
-						simplex[1] = point4;
-                        simplex[2] = p2;
-					}
-				}
-			}
-        } else {
-            if (zn3 >= 0.0f) {
-                if (zn4 >= 0.0f) {
-                    vec14 = - vec14;
-                    vec23 = - vec23;
-                    _nearestPoint_2triangles(result, point1, p3, point4, p2, vec13, vec34, vec14, vec23, vec24, dir3, dir4, simplex, n);
-                } else {
-                    vec14 = - vec14;
-                    _nearestPoint_triangle(result, point1, p3, point4, vec13, vec34, vec14, dir3, simplex, n);
-                    if (n == 3) {
-						simplex[0] = point1;
-                        simplex[1] = p3;
-						simplex[2] = point4;
-					}
-				}
-            } else {
-                if (zn4 >= 0.0f) {
-                    vec34 = - vec34;
-                    vec23 = - vec23;
-                    _nearestPoint_triangle(result, p2, point4, p3, vec24, vec34, vec23, dir4, simplex, n);
-                    if (n == 3) {
-                        simplex[0] = p2;
-						simplex[1] = point4;
-                        simplex[2] = p3;
-					}
-                } else {
-					return true;
-				}
-			}
-		}
-	}
-	return false;
 }
 
 }
