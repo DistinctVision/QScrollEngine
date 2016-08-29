@@ -118,7 +118,7 @@ void Scene::_updateIsoSurface()
     using namespace std;
     using namespace QScrollEngine;
     QMesh* mesh = m_isoEntity->part(0)->mesh();
-    m_isoSurface.setTValue(std::fmodf(m_isoSurface.tValue() + 0.01f, 3.0f));
+    m_isoSurface.setTValue(std::fmod(m_isoSurface.tValue() + 0.01f, 3.0f));
     m_isoSurface.isoApproximate(mesh, m_scalarField, true);
     mesh->textureCoords().resize(mesh->vertices().size(), QVector2D(0.0f, 0.0f));
     mesh->colors().resize(mesh->vertices().size());

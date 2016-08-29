@@ -1,5 +1,7 @@
 # Graphics 3d engine for qt
 
+Need qt version >= 5.4
+
 Features
 ---------------
 - Draw Call Batching
