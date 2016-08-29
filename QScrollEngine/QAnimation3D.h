@@ -66,30 +66,16 @@ public:
     qint16 maxTimeKeysScale() const { return m_animKeysPosition.at(m_animKeysPosition.size() - 1).time; }
     qint16 maxTimesKeys() const
     {
-        qint16 m1 = maxTimeKeysPosition(), m2 = maxTimeKeysOrientation(), m3 = maxTimeKeysScale();
-        if (m1 > m2) {
-            if (m1 > m3)
-                return m1;
-            return m3;
-        }
-        if (m2 > m3)
-            return m2;
-        return m3;
+        return std::max(maxTimeKeysPosition(),
+                        std::max(maxTimeKeysOrientation(), maxTimeKeysScale()));
     }
     qint16 minTimeKeysPosition() const { return m_animKeysPosition.at(0).time; }
     qint16 minTimeKeysOrientation() const { return m_animKeysOrientation.at(0).time; }
     qint16 minTimeKeysScale() const { return m_animKeysScale.at(0).time; }
     qint16 minTimesKeys() const
     {
-        qint16 m1 = minTimeKeysPosition(), m2 = minTimeKeysOrientation(), m3 = minTimeKeysScale();
-        if (m1 < m2) {
-            if (m1 < m3)
-                return m1;
-            return m3;
-        }
-        if (m2 < m3)
-            return m2;
-        return m3;
+        return std::min(minTimeKeysPosition(),
+                        std::min(minTimeKeysOrientation(), minTimeKeysScale()));
     }
 
     int countAnimKeysPosition() const { return static_cast<int>(m_animKeysPosition.size()); }
