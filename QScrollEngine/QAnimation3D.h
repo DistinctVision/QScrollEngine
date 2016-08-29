@@ -14,44 +14,44 @@ class QScrollEngineContext;
 class QAnimation3D
 {
 public:
-    typedef struct AnimKeyPosition
+    struct AnimKeyPosition
     {
         qint16 time;
         QVector3D position;
 
         AnimKeyPosition() {}
         AnimKeyPosition(qint16 time, const QVector3D& position)
+            : time(time)
+            , position(position)
         {
-            this->time = time;
-            this->position = position;
         }
-    } AnimKeyPosition;
+    };
 
-    typedef struct AnimKeyOrientation
+    struct AnimKeyOrientation
     {
         qint16 time;
         QQuaternion orienation;
 
         AnimKeyOrientation() {}
         AnimKeyOrientation(qint16 time, const QQuaternion& orienation)
+            : time(time)
+            , orienation(orienation)
         {
-            this->time = time;
-            this->orienation = orienation;
         }
-    } AnimKeyOrientation;
+    };
 
-    typedef struct AnimKeyScale
+    struct AnimKeyScale
     {
         qint16 time;
         QVector3D scale;
 
         AnimKeyScale() {}
         AnimKeyScale(qint16 time, const QVector3D& scale)
+            : time(time)
+            , scale(scale)
         {
-            this->time = time;
-            this->scale = scale;
         }
-    } AnimKeyScale;
+    };
 
 public:
     QAnimation3D();
@@ -66,30 +66,16 @@ public:
     qint16 maxTimeKeysScale() const { return m_animKeysPosition.at(m_animKeysPosition.size() - 1).time; }
     qint16 maxTimesKeys() const
     {
-        qint16 m1 = maxTimeKeysPosition(), m2 = maxTimeKeysOrientation(), m3 = maxTimeKeysScale();
-        if (m1 > m2) {
-            if (m1 > m3)
-                return m1;
-            return m3;
-        }
-        if (m2 > m3)
-            return m2;
-        return m3;
+        return std::max(maxTimeKeysPosition(),
+                        std::max(maxTimeKeysOrientation(), maxTimeKeysScale()));
     }
     qint16 minTimeKeysPosition() const { return m_animKeysPosition.at(0).time; }
     qint16 minTimeKeysOrientation() const { return m_animKeysOrientation.at(0).time; }
     qint16 minTimeKeysScale() const { return m_animKeysScale.at(0).time; }
     qint16 minTimesKeys() const
     {
-        qint16 m1 = minTimeKeysPosition(), m2 = minTimeKeysOrientation(), m3 = minTimeKeysScale();
-        if (m1 < m2) {
-            if (m1 < m3)
-                return m1;
-            return m3;
-        }
-        if (m2 < m3)
-            return m2;
-        return m3;
+        return std::min(minTimeKeysPosition(),
+                        std::min(minTimeKeysOrientation(), minTimeKeysScale()));
     }
 
     int countAnimKeysPosition() const { return static_cast<int>(m_animKeysPosition.size()); }
