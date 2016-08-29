@@ -21,9 +21,9 @@ public:
 
         AnimKeyPosition() {}
         AnimKeyPosition(qint16 time, const QVector3D& position)
+            : time(time)
+            , position(position)
         {
-            this->time = time;
-            this->position = position;
         }
     };
 
@@ -34,9 +34,9 @@ public:
 
         AnimKeyOrientation() {}
         AnimKeyOrientation(qint16 time, const QQuaternion& orienation)
+            : time(time)
+            , orienation(orienation)
         {
-            this->time = time;
-            this->orienation = orienation;
         }
     };
 
@@ -47,9 +47,9 @@ public:
 
         AnimKeyScale() {}
         AnimKeyScale(qint16 time, const QVector3D& scale)
+            : time(time)
+            , scale(scale)
         {
-            this->time = time;
-            this->scale = scale;
         }
     };
 
