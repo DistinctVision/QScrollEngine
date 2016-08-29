@@ -14,7 +14,7 @@ class QScrollEngineContext;
 class QAnimation3D
 {
 public:
-    typedef struct AnimKeyPosition
+    struct AnimKeyPosition
     {
         qint16 time;
         QVector3D position;
@@ -25,9 +25,9 @@ public:
             this->time = time;
             this->position = position;
         }
-    } AnimKeyPosition;
+    };
 
-    typedef struct AnimKeyOrientation
+    struct AnimKeyOrientation
     {
         qint16 time;
         QQuaternion orienation;
@@ -38,9 +38,9 @@ public:
             this->time = time;
             this->orienation = orienation;
         }
-    } AnimKeyOrientation;
+    };
 
-    typedef struct AnimKeyScale
+    struct AnimKeyScale
     {
         qint16 time;
         QVector3D scale;
@@ -51,7 +51,7 @@ public:
             this->time = time;
             this->scale = scale;
         }
-    } AnimKeyScale;
+    };
 
 public:
     QAnimation3D();
